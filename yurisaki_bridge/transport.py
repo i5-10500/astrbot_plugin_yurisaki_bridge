@@ -2,11 +2,14 @@
 
 import asyncio
 import time
+from collections import deque
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 PRIVATE_MESSAGE_EVENT = "message.private"
+_CONSUMED_EVENT_TTL_SECONDS = 30.0
+_MAX_CONSUMED_EVENTS = 32
 
 
 class AiocqhttpClient(Protocol):
@@ -94,6 +97,9 @@ class YurisakiTransport:
         self._started = False
         self._shutting_down = False
         self._event_handler = self._on_private_event
+        self._consumed_events: deque[tuple[float, tuple[str, str, str, str]]] = deque(
+            maxlen=_MAX_CONSUMED_EVENTS
+        )
 
     @property
     def pending(self) -> PendingRequest | None:
@@ -109,6 +115,7 @@ class YurisakiTransport:
         if self._started:
             return
         self._shutting_down = False
+        self._consumed_events.clear()
         self._client.subscribe(PRIVATE_MESSAGE_EVENT, self._event_handler)
         self._started = True
 
@@ -173,6 +180,7 @@ class YurisakiTransport:
                 TransportShuttingDownError("Yurisaki transport is shutting down")
             )
         self._client.unsubscribe(PRIVATE_MESSAGE_EVENT, self._event_handler)
+        self._consumed_events.clear()
 
     async def _respect_request_interval(self) -> None:
         if self._last_sent_at is None:
@@ -212,7 +220,25 @@ class YurisakiTransport:
             return False
 
         pending.future.set_result(list(message))
+        event_key = _event_key(event)
+        if event_key is not None:
+            self._consumed_events.append((self._monotonic(), event_key))
         return True
+
+    def was_consumed(self, event: object) -> bool:
+        """Return whether this raw event recently resolved the active request."""
+        if not isinstance(event, Mapping):
+            return False
+        self._prune_consumed_events()
+        event_key = _event_key(event)
+        return event_key is not None and any(
+            consumed_key == event_key for _, consumed_key in self._consumed_events
+        )
+
+    def _prune_consumed_events(self) -> None:
+        cutoff = self._monotonic() - _CONSUMED_EVENT_TTL_SECONDS
+        while self._consumed_events and self._consumed_events[0][0] < cutoff:
+            self._consumed_events.popleft()
 
 
 def _string_id(value: object) -> str | None:
@@ -231,3 +257,13 @@ def _has_text_segment(message: list[object]) -> bool:
             if isinstance(text, str) and text.strip():
                 return True
     return False
+
+
+def _event_key(event: Mapping[object, object]) -> tuple[str, str, str, str] | None:
+    message_id = _string_id(event.get("message_id"))
+    user_id = _string_id(event.get("user_id"))
+    self_id = _string_id(event.get("self_id"))
+    event_time = _string_id(event.get("time"))
+    if None in (message_id, user_id, self_id, event_time):
+        return None
+    return message_id, user_id, self_id, event_time  # type: ignore[return-value]
