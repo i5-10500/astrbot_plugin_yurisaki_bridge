@@ -1,4 +1,119 @@
-"""Convert OneBot message segments into stable bridge results.
+"""Convert OneBot message segments into stable bridge results."""
 
-Parser behavior is implemented in Milestone 1.
-"""
+import re
+from collections.abc import Mapping, Sequence
+
+from .models import BridgeError, ImageReference, SongInfoResult
+
+_FIELD_LINE = re.compile(
+    r"^\s*(?:[-•·]\s*)?(?P<label>[^:：\r\n]{1,32})\s*[:：]\s*(?P<value>.*)\s*$"
+)
+_LIST_SEPARATOR = re.compile(r"\s*(?:/|／|\||,|，)\s*")
+
+_FIELD_ALIASES = {
+    "曲目": "canonical_title",
+    "曲名": "canonical_title",
+    "曲目id": "song_id",
+    "歌曲id": "song_id",
+    "难度": "difficulties",
+    "物量": "note_counts",
+    "谱面设计": "charters",
+    "谱师": "charters",
+    "曲师": "artist",
+    "作曲": "artist",
+    "bpm": "bpm",
+    "版本": "version",
+    "上线日期": "release_date",
+    "发布日期": "release_date",
+    "实装日期": "release_date",
+    "曲包": "pack",
+}
+_LIST_FIELDS = {"difficulties", "note_counts", "charters"}
+
+
+def extract_message_content(
+    segments: Sequence[object],
+) -> tuple[str, list[ImageReference]]:
+    """Extract text and bounded image metadata from OneBot v11 segments."""
+    text_parts: list[str] = []
+    images: list[ImageReference] = []
+
+    for segment in segments:
+        if not isinstance(segment, Mapping):
+            continue
+        segment_type = segment.get("type")
+        raw_data = segment.get("data")
+        data = raw_data if isinstance(raw_data, Mapping) else segment
+
+        if segment_type == "text":
+            text = data.get("text")
+            if isinstance(text, str):
+                text_parts.append(text)
+        elif segment_type == "image":
+            file = _optional_string(data.get("file"))
+            url = _optional_string(data.get("url"))
+            if file is not None or url is not None:
+                images.append(ImageReference(file=file, url=url))
+
+    return "".join(text_parts), images
+
+
+def parse_song_info_response(
+    query: str,
+    segments: Sequence[object],
+) -> SongInfoResult:
+    """Parse a Yurisaki ``/a info`` response without assuming field order."""
+    raw_text, images = extract_message_content(segments)
+    result = SongInfoResult(query=query, raw_text=raw_text, images=images)
+
+    if not raw_text.strip():
+        result.ok = False
+        result.error = BridgeError(
+            error_type="invalid_response",
+            message="Yurisaki response contained no text.",
+        )
+        return result
+
+    parsed_fields: dict[str, str | list[str]] = {}
+    for line in raw_text.splitlines():
+        match = _FIELD_LINE.match(line)
+        if match is None:
+            continue
+
+        label = match.group("label").strip()
+        value = match.group("value").strip()
+        field_name = _FIELD_ALIASES.get(_normalize_label(label))
+        if field_name is None:
+            _store_extra_field(result.extra_fields, label, value)
+        elif field_name in _LIST_FIELDS:
+            parsed_fields[field_name] = _split_list(value)
+        else:
+            parsed_fields[field_name] = value
+
+    for field_name, value in parsed_fields.items():
+        setattr(result, field_name, value)
+
+    return result
+
+
+def _normalize_label(label: str) -> str:
+    return re.sub(r"\s+", "", label).casefold()
+
+
+def _split_list(value: str) -> list[str]:
+    if not value:
+        return []
+    return [item for item in _LIST_SEPARATOR.split(value) if item]
+
+
+def _optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _store_extra_field(extra_fields: dict[str, str], label: str, value: str) -> None:
+    key = label
+    suffix = 2
+    while key in extra_fields:
+        key = f"{label}#{suffix}"
+        suffix += 1
+    extra_fields[key] = value
