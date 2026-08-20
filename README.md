@@ -40,6 +40,8 @@ AstrBot Tool -> Service -> Transport -> Yurisaki
 
 插件启动时会尝试连接；若 NapCat 尚未就绪，会在首次 Tool 调用时自动重试。
 
+真实环境验收请按 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md) 执行。仓库为私有状态时优先上传本地 ZIP，不要向第三方页面提供 GitHub Token。
+
 ## 本地开发
 
 要求 Python 3.12 或 3.13。
