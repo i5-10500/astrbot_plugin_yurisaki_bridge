@@ -1,0 +1,37 @@
+{
+  "enabled": {
+    "description": "启用 Yurisaki Bridge",
+    "type": "bool",
+    "default": true
+  },
+  "yurisaki_user_id": {
+    "description": "Yurisaki QQ 号",
+    "type": "string",
+    "default": "3889054356",
+    "hint": "仅接受此账号在查询发出后的私聊回复。"
+  },
+  "platform_id": {
+    "description": "aiocqhttp 平台 ID",
+    "type": "string",
+    "default": "",
+    "hint": "只有一个 aiocqhttp 平台时留空；配置多个 QQ 平台时必须填写目标平台 ID。"
+  },
+  "timeout_seconds": {
+    "description": "响应超时（秒）",
+    "type": "float",
+    "default": 15.0,
+    "hint": "等待 Yurisaki 私聊回复的最长时间。"
+  },
+  "min_request_interval": {
+    "description": "最小请求间隔（秒）",
+    "type": "float",
+    "default": 2.0,
+    "hint": "所有会话共享此限速，避免短时间连续请求。"
+  },
+  "debug_logging": {
+    "description": "启用调试日志",
+    "type": "bool",
+    "default": false,
+    "hint": "不会记录私聊正文；仅在排查连接问题时开启。"
+  }
+}

@@ -65,6 +65,7 @@ def _event(**overrides: object) -> dict[str, object]:
         "user_id": int(YURISAKI_ID),
         "self_id": int(BOT_ID),
         "time": 1_000,
+        "message_id": 123,
         "message": [{"type": "text", "data": {"text": "曲目: Test"}}],
     }
     event.update(overrides)
@@ -157,7 +158,33 @@ async def test_duplicate_response_is_consumed_once() -> None:
 
     assert await transport.consume_event(_event()) is True
     assert await transport.consume_event(_event()) is False
+    assert transport.was_consumed(_event()) is True
+    assert transport.was_consumed(_event(message_id=456)) is False
     await task
+
+
+@pytest.mark.asyncio
+async def test_consumed_marker_expires_and_is_cleared_on_shutdown() -> None:
+    client = FakeClient()
+    now = 10.0
+    transport = YurisakiTransport(
+        client,
+        _config(),
+        wall_clock=lambda: 1_000.0,
+        monotonic=lambda: now,
+    )
+    transport.start()
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+    await transport.consume_event(_event())
+    await task
+
+    assert transport.was_consumed(_event()) is True
+    now = 41.0
+    assert transport.was_consumed(_event()) is False
+
+    await transport.shutdown()
+    assert transport.was_consumed(_event()) is False
 
 
 @pytest.mark.asyncio

@@ -1,36 +1,46 @@
 # Yurisaki Bridge for AstrBot
 
-Yurisaki Bridge 是一个非官方第三方 AstrBot 插件，计划通过 QQ 私聊调用
-Yurisaki，并把 Arcaea 曲目信息作为结构化 Tool Result 返回给 Agent。本项目不代表
-Yurisaki、AstrBot、Arcaea 或 lowiro 的官方立场。
+Yurisaki Bridge 是一个非官方第三方 AstrBot 插件，通过 QQ 私聊调用 Yurisaki，并将 Arcaea 曲目信息作为结构化 Tool Result 返回给 Agent。本项目不代表 Yurisaki、AstrBot、Arcaea 或 lowiro 的官方立场。
 
 ## 开发声明
 
-本项目的代码、测试、文档与工程配置完全由 OpenAI Codex 开发。仓库维护者负责提出
-需求、确认产品方向，以及批准许可证、公开发布和外部服务操作。
+本项目的代码、测试、文档与工程配置完全由 OpenAI Codex 开发。仓库维护者负责提出需求、确认产品方向，以及批准许可证、公开发布和外部服务操作。
 
 ## 当前状态
 
-项目处于 Milestone 2：仓库脚手架、`/a info` 离线 Parser 和 aiocqhttp
-single-flight Transport 已建立，尚未注册 AstrBot Tool。Parser 当前基于明确标注的
-合成 OneBot fixture 开发，Transport 当前通过 mock 验证，真实响应兼容性将在联调阶段
-校准。首个目标版本仅提供受控接口 `yurisaki_song_info(query)`，不会提供任意
-Yurisaki 命令执行能力。
+Milestone 3 已完成：插件已注册受控工具 `yurisaki_song_info(query)`，并实现配置注入、输入校验、全局 single-flight、请求限速、超时处理、严格响应匹配和热重载清理。离线测试不会连接真实 QQ 或 Yurisaki；真实响应格式仍需在 Milestone 4 联调中校准。
 
-## 计划架构
+插件不会提供任意 Yurisaki 命令执行能力。每次 Tool 调用只会生成：
 
 ```text
-AstrBot Plugin Entry -> Service -> Transport -> Yurisaki
-                              \-> Parser -> Structured Result
+/a info <经校验的 query>
 ```
 
-- `main.py`：AstrBot 注册与生命周期入口。
-- `yurisaki_bridge/service.py`：输入校验、业务编排和错误模型。
-- `yurisaki_bridge/transport.py`：aiocqhttp 私聊、回调及全局 single-flight。
-- `yurisaki_bridge/parser.py`：OneBot segments 与 `/a info` 结果解析。
-- `tests/`：不连接真实 QQ 或 Yurisaki 的离线测试。
+## 架构
 
-## 开发
+```text
+AstrBot Tool -> Service -> Transport -> Yurisaki
+                         \-> Parser -> Structured Result
+```
+
+- `main.py`：AstrBot Tool、事件拦截、配置与生命周期入口。
+- `yurisaki_bridge/service.py`：输入校验、业务编排和安全错误模型。
+- `yurisaki_bridge/transport.py`：aiocqhttp 私聊、回调和 single-flight。
+- `yurisaki_bridge/parser.py`：OneBot segments 与 `/a info` 结果解析。
+- `tests/`：不连接真实外部服务的离线测试。
+
+## 配置
+
+安装到 AstrBot 后，在插件配置页确认：
+
+- `yurisaki_user_id`：默认 `3889054356`。
+- `platform_id`：仅有一个 aiocqhttp 平台时留空；多个平台时填写目标平台 ID。
+- `timeout_seconds`：默认等待 15 秒。
+- `min_request_interval`：默认全局间隔 2 秒。
+
+插件启动时会尝试连接；若 NapCat 尚未就绪，会在首次 Tool 调用时自动重试。
+
+## 本地开发
 
 要求 Python 3.12 或 3.13。
 
@@ -43,10 +53,6 @@ ruff format --check .
 python -m pytest
 ```
 
-AstrBot 仅从 `requirements.txt` 安装运行时依赖；开发工具放在
-`requirements-dev.txt`。真实联调必须在独立 AstrBot/NapCat 测试环境中完成，并禁用
-Probe 插件。
-
 ## 发布前待确认
 
-项目许可证尚未确定。首次公开发布前必须完成隐私检查，并由维护者选择许可证。
+项目许可证尚未确定。首次公开发布前必须完成真实环境联调与隐私检查，并由维护者选择许可证。严禁提交 QQ Cookie、Token、WebSocket 密钥、二维码缓存、真实私聊日志或其他账号凭据。
