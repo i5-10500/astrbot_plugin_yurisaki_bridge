@@ -1,0 +1,289 @@
+"""Offline tests for the single-flight OneBot transport."""
+
+import asyncio
+from collections.abc import Callable
+from typing import Any
+
+import pytest
+
+from yurisaki_bridge.transport import (
+    PRIVATE_MESSAGE_EVENT,
+    ResponseTimeoutError,
+    SendFailedError,
+    TransportConfig,
+    TransportShuttingDownError,
+    TransportUnavailableError,
+    YurisakiTransport,
+)
+
+BOT_ID = "100001"
+YURISAKI_ID = "200002"
+
+
+class FakeClient:
+    def __init__(self) -> None:
+        self.handlers: dict[str, list[Callable[..., object]]] = {}
+        self.calls: list[tuple[str, dict[str, object]]] = []
+        self.call_events: asyncio.Queue[None] = asyncio.Queue()
+        self.send_error: Exception | None = None
+
+    def subscribe(self, event_name: str, handler: Callable[..., object]) -> None:
+        self.handlers.setdefault(event_name, []).append(handler)
+
+    def unsubscribe(self, event_name: str, handler: Callable[..., object]) -> None:
+        self.handlers[event_name].remove(handler)
+
+    async def call_action(self, action: str, **params: object) -> Any:
+        self.calls.append((action, params))
+        self.call_events.put_nowait(None)
+        if self.send_error is not None:
+            raise self.send_error
+        return {"message_id": 1}
+
+    async def emit(self, event: object) -> list[object]:
+        results = []
+        for handler in list(self.handlers.get(PRIVATE_MESSAGE_EVENT, [])):
+            results.append(await handler(event))
+        return results
+
+
+def _config(**overrides: object) -> TransportConfig:
+    values = {
+        "yurisaki_user_id": YURISAKI_ID,
+        "self_id": BOT_ID,
+        "timeout_seconds": 0.2,
+        "min_request_interval": 0.0,
+    }
+    values.update(overrides)
+    return TransportConfig(**values)  # type: ignore[arg-type]
+
+
+def _event(**overrides: object) -> dict[str, object]:
+    event: dict[str, object] = {
+        "post_type": "message",
+        "message_type": "private",
+        "user_id": int(YURISAKI_ID),
+        "self_id": int(BOT_ID),
+        "time": 1_000,
+        "message": [{"type": "text", "data": {"text": "曲目: Test"}}],
+    }
+    event.update(overrides)
+    return event
+
+
+async def _wait_for_calls(client: FakeClient, count: int) -> None:
+    async with asyncio.timeout(0.2):
+        while len(client.calls) < count:
+            await client.call_events.get()
+
+
+@pytest.mark.asyncio
+async def test_start_and_shutdown_manage_one_callback() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config())
+
+    transport.start()
+    transport.start()
+    assert len(client.handlers[PRIVATE_MESSAGE_EVENT]) == 1
+
+    await transport.shutdown()
+    assert client.handlers[PRIVATE_MESSAGE_EVENT] == []
+    assert transport.is_running is False
+
+
+@pytest.mark.asyncio
+async def test_request_sends_private_message_and_returns_segments() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config(), wall_clock=lambda: 1_000.5)
+    transport.start()
+
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+    callback_results = await client.emit(_event())
+
+    assert callback_results == [None]
+    assert await task == _event()["message"]
+    assert client.calls == [
+        (
+            "send_private_msg",
+            {"user_id": int(YURISAKI_ID), "message": "/a info test"},
+        )
+    ]
+    assert transport.pending is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "wrong_event",
+    [
+        _event(user_id=999),
+        _event(self_id=999),
+        _event(message_type="group"),
+        _event(post_type="notice"),
+        _event(time=999),
+        _event(message=[{"type": "image", "data": {"file": "cover"}}]),
+    ],
+)
+async def test_non_matching_events_are_ignored(wrong_event: object) -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config(), wall_clock=lambda: 1_000.5)
+    transport.start()
+
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+
+    assert await client.emit(wrong_event) == [None]
+    assert task.done() is False
+    await client.emit(_event())
+    await task
+
+
+@pytest.mark.asyncio
+async def test_event_without_active_request_is_ignored() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config())
+    transport.start()
+
+    assert await transport.consume_event(_event()) is False
+
+
+@pytest.mark.asyncio
+async def test_duplicate_response_is_consumed_once() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config(), wall_clock=lambda: 1_000.0)
+    transport.start()
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+
+    assert await transport.consume_event(_event()) is True
+    assert await transport.consume_event(_event()) is False
+    await task
+
+
+@pytest.mark.asyncio
+async def test_timeout_clears_pending_and_late_response_is_ignored() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01),
+        wall_clock=lambda: 1_000.0,
+    )
+    transport.start()
+
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info test")
+
+    assert transport.pending is None
+    assert await transport.consume_event(_event()) is False
+
+
+@pytest.mark.asyncio
+async def test_cancellation_clears_pending() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config())
+    transport.start()
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert transport.pending is None
+
+
+@pytest.mark.asyncio
+async def test_shutdown_interrupts_pending_request() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config())
+    transport.start()
+    task = asyncio.create_task(transport.request("/a info test"))
+    await _wait_for_calls(client, 1)
+
+    await transport.shutdown()
+
+    with pytest.raises(TransportShuttingDownError):
+        await task
+    assert transport.pending is None
+
+
+@pytest.mark.asyncio
+async def test_send_failure_is_wrapped_and_cleans_pending() -> None:
+    client = FakeClient()
+    client.send_error = OSError("private network detail")
+    transport = YurisakiTransport(client, _config())
+    transport.start()
+
+    with pytest.raises(SendFailedError, match="Failed to send"):
+        await transport.request("/a info test")
+    assert transport.pending is None
+
+
+@pytest.mark.asyncio
+async def test_requests_are_globally_single_flight() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config(), wall_clock=lambda: 1_000.0)
+    transport.start()
+    first = asyncio.create_task(transport.request("/a info first"))
+    second = asyncio.create_task(transport.request("/a info second"))
+
+    await _wait_for_calls(client, 1)
+    assert len(client.calls) == 1
+    await client.emit(_event())
+    await first
+
+    await _wait_for_calls(client, 2)
+    assert client.calls[1][1]["message"] == "/a info second"
+    await client.emit(_event())
+    await second
+
+
+@pytest.mark.asyncio
+async def test_minimum_request_interval_is_enforced() -> None:
+    client = FakeClient()
+    now = 10.0
+    sleeps: list[float] = []
+
+    def monotonic() -> float:
+        return now
+
+    async def sleep(delay: float) -> None:
+        nonlocal now
+        sleeps.append(delay)
+        now += delay
+
+    transport = YurisakiTransport(
+        client,
+        _config(min_request_interval=2.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=monotonic,
+        sleep=sleep,
+    )
+    transport.start()
+
+    first = asyncio.create_task(transport.request("/a info first"))
+    await _wait_for_calls(client, 1)
+    await client.emit(_event())
+    await first
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    await _wait_for_calls(client, 2)
+    assert sleeps == [2.0]
+    await client.emit(_event())
+    await second
+
+
+def test_invalid_transport_config_is_rejected() -> None:
+    with pytest.raises(ValueError, match="digits only"):
+        _config(yurisaki_user_id="not-an-id")
+    with pytest.raises(ValueError, match="greater than zero"):
+        _config(timeout_seconds=0)
+    with pytest.raises(ValueError, match="cannot be negative"):
+        _config(min_request_interval=-1)
+
+
+@pytest.mark.asyncio
+async def test_request_before_start_is_rejected() -> None:
+    transport = YurisakiTransport(FakeClient(), _config())
+
+    with pytest.raises(TransportUnavailableError):
+        await transport.request("/a info test")
