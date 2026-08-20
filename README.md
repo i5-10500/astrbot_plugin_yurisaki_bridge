@@ -11,10 +11,11 @@ Yurisaki、AstrBot、Arcaea 或 lowiro 的官方立场。
 
 ## 当前状态
 
-项目处于 Milestone 1：仓库脚手架和 `/a info` 离线 Parser 已建立，尚未实现真实 QQ
-通信或 AstrBot Tool 注册。Parser 当前基于明确标注的合成 OneBot fixture 开发，真实
-响应兼容性将在联调阶段校准。首个目标版本仅提供受控接口
-`yurisaki_song_info(query)`，不会提供任意 Yurisaki 命令执行能力。
+项目处于 Milestone 2：仓库脚手架、`/a info` 离线 Parser 和 aiocqhttp
+single-flight Transport 已建立，尚未注册 AstrBot Tool。Parser 当前基于明确标注的
+合成 OneBot fixture 开发，Transport 当前通过 mock 验证，真实响应兼容性将在联调阶段
+校准。首个目标版本仅提供受控接口 `yurisaki_song_info(query)`，不会提供任意
+Yurisaki 命令执行能力。
 
 ## 计划架构
 
