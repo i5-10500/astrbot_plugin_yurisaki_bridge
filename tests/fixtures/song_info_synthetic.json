@@ -1,0 +1,15 @@
+[
+  {
+    "type": "image",
+    "data": {
+      "file": "synthetic-synthesis-cover",
+      "url": "https://example.invalid/synthesis.jpg"
+    }
+  },
+  {
+    "type": "text",
+    "data": {
+      "text": "曲目：Synthesis.\n曲目ID：542\n难度：4.0 / 8.2 / 9.7 / 10.5\n物量：764 / 1109 / 1192 / 1469\n谱面设计：Charter A / Charter B\n曲师：tn-shi\nBPM：180\n版本：6.16\n上线日期：2026-07-30\n曲包：Memory Archive"
+    }
+  }
+]
