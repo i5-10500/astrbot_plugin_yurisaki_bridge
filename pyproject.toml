@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ASYNC", "C4", "E", "F", "I", "Q", "UP", "W"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

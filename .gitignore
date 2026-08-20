@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+*.log
+*.sqlite3
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local AstrBot/NapCat state and credentials must never enter this repository.
+data/
+config/
+logs/
+napcat/
+
+# Local Codex development brief; not part of the distributable plugin.
+yurisaki_bridge_open_source_development_context.md
