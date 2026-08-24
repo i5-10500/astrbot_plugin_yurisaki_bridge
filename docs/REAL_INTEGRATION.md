@@ -14,6 +14,12 @@
 重复回复。断线错误模型继续由离线回归测试覆盖。AstrBot/NapCat 的具体版本未在本次反馈中
 记录。
 
+## Release 资产复验（2026-08-25）
+
+维护者从公开 GitHub Release 安装 v0.1.0 资产，并在 AstrBot `4.25.1`、NapCat Core
+`4.18.9` 环境完成发布后复验。插件加载、一次真实查询和热重载后三项检查全部通过，未再出现
+`No module named 'yurisaki_bridge'`。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：
@@ -40,10 +46,11 @@ ws://127.0.0.1:6199/ws
 
 ## 3. 安装待验收版本
 
-从准备验收的提交或分支生成本地安装包；不要把 GitHub Token 填入第三方安装页面：
+正式版本优先从对应 GitHub Release 下载 ZIP。开发中版本才从准备验收的提交或分支生成
+本地安装包；不要把 GitHub Token 填入第三方安装页面：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.0.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-<version>.zip <tag-or-commit>
 ```
 
 在 AstrBot“插件”页面通过本地文件上传该 ZIP。若已安装 Probe 插件，必须先禁用；插件配置保持 `enabled=true`，只有一个 aiocqhttp 平台时将 `platform_id` 留空。

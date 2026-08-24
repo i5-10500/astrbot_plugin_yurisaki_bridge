@@ -71,3 +71,6 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-<version>.zip <
 - 从该 tag 重建 ZIP，核对 SHA-256，并在 GitHub Release 记录变更、兼容范围和安装说明。
 - 用干净 AstrBot 环境安装 Release 资产；通过后再单独授权提交 AstrBot 插件市场。
 - 市场记录的 author、name、version、repo 和安装包内 `metadata.yaml` 必须一致。
+- 确认插件标识和仓库 URL 未被市场占用后，由维护者登录
+  [AstrBot Cloud 插件发布页面](https://cloud.astrbot.app/publish) 提交仓库；不要共享登录凭据。
+- 记录 Cloud 创建的提交或审核链接，并持续跟进自动检查和维护者反馈。
