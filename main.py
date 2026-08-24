@@ -9,9 +9,9 @@ from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 
-from yurisaki_bridge import __version__
-from yurisaki_bridge.service import YurisakiService, unavailable_payload
-from yurisaki_bridge.transport import TransportConfig, YurisakiTransport
+from .yurisaki_bridge import __version__
+from .yurisaki_bridge.service import YurisakiService, unavailable_payload
+from .yurisaki_bridge.transport import TransportConfig, YurisakiTransport
 
 _PLATFORM_NAME = "aiocqhttp"
 
