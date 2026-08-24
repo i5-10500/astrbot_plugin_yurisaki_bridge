@@ -6,7 +6,7 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 
 ## 当前状态
 
-v0.1.0 beta 候选版已经完成离线测试和真实环境联调。2026-08-24 的实机验收覆盖了
+v0.1.0 已经完成离线测试和真实环境联调。2026-08-24 的实机验收覆盖了
 真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和插件热重载；详细边界见
 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
 
@@ -28,10 +28,16 @@ v0.1.0 beta 候选版已经完成离线测试和真实环境联调。2026-08-24 
 
 ## 安装
 
-开发和私有仓库阶段，推荐从仓库的最新 `main` 生成安装包：
+在 AstrBot WebUI 的插件页面选择通过 URL 安装，并填写本仓库地址：
+
+```text
+https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
+```
+
+也可以克隆仓库后，从最新 `main` 生成本地安装包：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-test.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.0.zip main
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -83,8 +89,8 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 
 ## 常见问题
 
-- **安装时报 `No module named 'yurisaki_bridge'`**：使用包含 PR #6 修复的最新 `main`，
-  删除旧插件副本后重新打包上传。
+- **安装时报 `No module named 'yurisaki_bridge'`**：删除旧插件副本，重新安装 v0.1.0
+  或更新版本。
 - **找不到 aiocqhttp 平台**：确认 NapCat 已连接；多平台环境还要填写正确的
   `platform_id`。
 - **无法发送私聊**：确认机器人 QQ 能主动私聊目标账号，并检查 NapCat 的连接状态。
@@ -116,7 +122,8 @@ python -m pytest
 ```
 
 离线测试不会连接真实 QQ 或 Yurisaki。贡献流程见
-[`CONTRIBUTING.md`](CONTRIBUTING.md)，版本记录见 [`CHANGELOG.md`](CHANGELOG.md)。
+[`CONTRIBUTING.md`](CONTRIBUTING.md)，版本记录见 [`CHANGELOG.md`](CHANGELOG.md)，
+维护者发布流程见 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)。
 
 ## 开发声明
 

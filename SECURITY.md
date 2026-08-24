@@ -2,8 +2,7 @@
 
 ## Supported versions
 
-项目尚处于 v0.1.0 beta 阶段。安全修复只针对 `main` 和最新发布版本；更早的开发快照不
-提供单独维护。
+安全修复针对 `main` 和最新发布版本；更早的开发快照不提供单独维护。
 
 ## Reporting a vulnerability
 

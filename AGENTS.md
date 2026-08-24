@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库已完成 Milestone 3 的离线实现。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.0 实现和真实环境验收已完成。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -36,17 +36,18 @@ ruff format --check .
 
 ## 当前交接状态（2026-08-24）
 
-- Milestone 4 已完成。真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和查询中热重载均在另一台电脑通过；Probe 插件未参与。详细结果和第五项的测试边界见 `docs/REAL_INTEGRATION.md`。
+- 真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和查询中热重载均在另一台电脑通过；Probe 插件未参与。详细结果和第五项的测试边界见 `docs/REAL_INTEGRATION.md`。
 - 首次实机安装发现入口顶层导入导致 `No module named 'yurisaki_bridge'`；PR #6 已改为包内相对导入并增加 AstrBot 包加载上下文回归测试，修复提交已合并到 `main`。
 - `yurisaki_song_info(query)`、固定 `/a info` 命令、输入防注入、全局 single-flight、限速、超时、安全错误模型、严格 sender/self/time 匹配、响应拦截及热重载清理均已实现。
-- 本地共 51 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
-- Milestone 5 的开源文档、issue 模板、隐私扫描和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
-- 不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接在仓库根目录生成可安装 ZIP，再交给另一台电脑上传。
+- 本地共 54 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
+- 开源文档、issue 模板、隐私扫描、许可证和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
+- 当前正在执行公开发布前审计。不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接在仓库根目录生成版本化安装 ZIP，再交给另一台电脑上传。
 
 ## 接下来要做
 
-1. 将官方完整 AGPL-3.0 文本、README 授权声明和许可证回归检查合并到 `main`。
-2. 基于最终 `main` 在仓库根目录重新生成 `astrbot_plugin_yurisaki_bridge-test.zip`，确认包根含 `LICENSE`、`main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt` 和 `yurisaki_bridge/`，且不含测试、CI、缓存或本地数据。
-3. 下一阶段是 Milestone 6：公开仓库、创建 `v0.1.0` tag/Release；公开和发布市场属于外部操作，必须逐步说明且不得擅自执行。
+1. 按 `docs/RELEASE_CHECKLIST.md` 完成代码、历史、身份、Actions、PR、安装包和 GitHub 设置检查，并清除测试版遗留表述与构件。
+2. 基于最终 `main` 在仓库根目录生成 `astrbot_plugin_yurisaki_bridge-0.1.0.zip`，确认包根含 `LICENSE`、`main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt` 和 `yurisaki_bridge/`，且不含测试、CI、缓存或本地数据。
+3. 维护者已明确授权：发布前检查全部通过后，将 GitHub 仓库从 Private 改为 Public。
+4. 创建 `v0.1.0` tag/GitHub Release 和提交 AstrBot 插件市场仍是后续独立操作，不得与公开仓库自动合并执行。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动公开仓库、发布 Release 或提交 AstrBot 插件市场。
