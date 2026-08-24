@@ -1,1 +1,1 @@
-# No third-party runtime dependencies are required during Milestone 0.
+# No third-party runtime dependencies; AstrBot provides the runtime API.

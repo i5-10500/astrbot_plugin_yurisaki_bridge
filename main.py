@@ -126,9 +126,8 @@ class YurisakiBridgePlugin(Star):
             self._service = YurisakiService(transport)
             if self.config.get("debug_logging", False):
                 logger.info(
-                    "Yurisaki transport connected through platform %s for self_id %s",
+                    "Yurisaki transport connected through platform %s",
                     platform.meta().id,
-                    self_id,
                 )
             return self._service
 

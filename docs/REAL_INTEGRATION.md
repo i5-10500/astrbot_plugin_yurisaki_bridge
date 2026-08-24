@@ -2,6 +2,18 @@
 
 本阶段验证 `AstrBot → NapCat → Yurisaki → Tool Result → Agent` 的真实链路。请使用专门的测试 QQ；不要把 QQ 密码、Cookie、二维码、OneBot Token、模型 API Key 或 GitHub Token 发到聊天、日志或仓库。
 
+## 验收记录（2026-08-24）
+
+维护者在另一台已有 AstrBot/NapCat 的电脑完成了真实联调：真实查询、命令拦截、原始响应
+拦截、两次并发查询、重连恢复和查询中热重载均通过，Probe 插件未参与测试。首次上传曾因
+入口使用顶层导入而出现 `No module named 'yurisaki_bridge'`，该问题已由 PR #6 的包内相对
+导入修复，重新打包安装成功。
+
+断开 NapCat 时，AstrBot 同时无法收到用户的查询消息，因此实机没有进入 Tool 并观察到
+`transport_unavailable`、`send_failed` 或 `timeout`；重连后新查询正常，且没有迟到错误或
+重复回复。断线错误模型继续由离线回归测试覆盖。AstrBot/NapCat 的具体版本未在本次反馈中
+记录。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：

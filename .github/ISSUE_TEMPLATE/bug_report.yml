@@ -1,0 +1,64 @@
+name: Bug report
+description: 报告可复现的插件缺陷；不要提交凭据或未脱敏日志。
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告。提交前请移除 QQ 号、群号、消息 ID、Token、Cookie、二维码缓存和私聊正文。
+        安全漏洞请优先使用 GitHub Private Vulnerability Reporting，不要在公开 issue 披露细节。
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version or commit
+      placeholder: v0.1.0 or 7795cea
+    validations:
+      required: true
+  - type: input
+    id: astrbot_version
+    attributes:
+      label: AstrBot version
+    validations:
+      required: true
+  - type: input
+    id: napcat_version
+    attributes:
+      label: NapCat version
+    validations:
+      required: true
+  - type: dropdown
+    id: scenario
+    attributes:
+      label: Failure area
+      options:
+        - Installation or loading
+        - Platform connection
+        - Sending the query
+        - Receiving or intercepting the response
+        - Parsing the response
+        - Timeout, concurrency, or reload
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: 描述操作顺序、预期结果和实际结果，不要粘贴完整日志。
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_error
+    attributes:
+      label: Sanitized error lines and OneBot segment types
+      description: 只提供相关错误行和 segment 类型；删除账号、消息 ID、正文和所有凭据。
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: 我已删除 QQ 号、群号、消息 ID、Token、Cookie、二维码缓存、私聊正文和其他凭据。
+          required: true

@@ -27,5 +27,8 @@ config/
 logs/
 napcat/
 
+# Local installation artifacts generated for real-environment testing.
+astrbot_plugin_yurisaki_bridge-*.zip
+
 # Local Codex development brief; not part of the distributable plugin.
 yurisaki_bridge_open_source_development_context.md

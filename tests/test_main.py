@@ -19,11 +19,23 @@ YURISAKI_ID = "200002"
 
 
 class FakeLogger:
+    def __init__(self) -> None:
+        self.records: list[str] = []
+
     def info(self, *args: object, **kwargs: object) -> None:
-        pass
+        del kwargs
+        self.records.append(_format_log_args(args))
 
     def warning(self, *args: object, **kwargs: object) -> None:
-        pass
+        del kwargs
+        self.records.append(_format_log_args(args))
+
+
+def _format_log_args(args: tuple[object, ...]) -> str:
+    if not args:
+        return ""
+    message = str(args[0])
+    return message % args[1:] if len(args) > 1 else message
 
 
 class FakeFilter:
@@ -252,6 +264,25 @@ async def test_terminate_during_setup_cannot_leave_a_raw_callback(
 
     assert client.handlers == []
     assert plugin._transport is None
+
+
+@pytest.mark.asyncio
+async def test_debug_logging_does_not_include_bot_account(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {"enabled": True, "debug_logging": True},
+    )
+
+    await plugin.initialize()
+
+    records = "\n".join(plugin_module.logger.records)  # type: ignore[attr-defined]
+    assert "qq-main" in records
+    assert BOT_ID not in records
+
+    await plugin.terminate()
 
 
 def test_login_info_requires_numeric_user_id(plugin_module: ModuleType) -> None:
