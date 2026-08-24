@@ -1,4 +1,4 @@
-# Milestone 4 真实联调清单
+# 真实环境验收与回归测试
 
 本阶段验证 `AstrBot → NapCat → Yurisaki → Tool Result → Agent` 的真实链路。请使用专门的测试 QQ；不要把 QQ 密码、Cookie、二维码、OneBot Token、模型 API Key 或 GitHub Token 发到聊天、日志或仓库。
 
@@ -38,12 +38,12 @@ ws://127.0.0.1:6199/ws
 
 在 AstrBot 的“机器人”页面创建 `OneBot v11 (QQ 个人号等)` 平台。若设置 Token，两端必须一致。确认 NapCat 显示已连接，并确认测试 QQ 能正常私聊 Yurisaki（默认账号 `3889054356`）。
 
-## 3. 安装本地插件
+## 3. 安装待验收版本
 
-仓库当前是私有仓库，不要把 GitHub Token 填入第三方安装页面。合并最新 `main` 后，在仓库根目录创建本地测试包：
+从准备验收的提交或分支生成本地安装包；不要把 GitHub Token 填入第三方安装页面：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-test.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.0.zip main
 ```
 
 在 AstrBot“插件”页面通过本地文件上传该 ZIP。若已安装 Probe 插件，必须先禁用；插件配置保持 `enabled=true`，只有一个 aiocqhttp 平台时将 `platform_id` 留空。

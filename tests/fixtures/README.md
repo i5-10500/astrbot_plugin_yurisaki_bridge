@@ -5,5 +5,6 @@ group IDs, tokens, cookies, private messages, and durable image URLs before comm
 Fixtures must never contact or depend on the live Yurisaki service.
 
 Files whose names end in `_synthetic.json` are invented protocol-shaped examples,
-not captured service responses. They must be replaced or supplemented with sanitized
-real fixtures before compatibility claims are made.
+not captured service responses. Real compatibility is verified separately with the
+isolated checklist in `docs/REAL_INTEGRATION.md`. Never replace these files with raw
+logs; only add a real fixture after it has been strictly sanitized.
