@@ -34,18 +34,19 @@ ruff format --check .
 
 绝不提交 QQ Cookie、Token、WebSocket 密钥、二维码缓存、真实账号或未脱敏私聊日志。Yurisaki ID、超时和请求间隔应从配置读取。日志仅记录必要元数据；发布前检查 `.env`、日志和本地 AstrBot 数据未被跟踪。
 
-## 当前交接状态（2026-08-21）
+## 当前交接状态（2026-08-24）
 
-- `main` 已同步 GitHub，当前提交为 `efac729`；PR #3（Tool/Service）和 PR #4（联调清单）已合并。
+- Milestone 4 已完成。真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和查询中热重载均在另一台电脑通过；Probe 插件未参与。详细结果和第五项的测试边界见 `docs/REAL_INTEGRATION.md`。
+- 首次实机安装发现入口顶层导入导致 `No module named 'yurisaki_bridge'`；PR #6 已改为包内相对导入并增加 AstrBot 包加载上下文回归测试，修复提交已合并到 `main`。
 - `yurisaki_song_info(query)`、固定 `/a info` 命令、输入防注入、全局 single-flight、限速、超时、安全错误模型、严格 sender/self/time 匹配、响应拦截及热重载清理均已实现。
 - 本地共 51 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
-- 当前停在 Milestone 4 真实联调。维护者明确使用另一台电脑已有的 AstrBot 环境；不要在当前主机重新安装或配置 AstrBot/NapCat。
+- 当前进入 Milestone 5（开源完善）。不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接在仓库根目录生成可安装 ZIP，再交给另一台电脑上传。
 
-## 维护者接下来要做
+## 接下来要做
 
-1. 在另一台电脑获取最新 `main`，可运行 `git archive --format=zip --output astrbot_plugin_yurisaki_bridge-test.zip main`，再从 AstrBot 插件页上传 ZIP。私有仓库不要向第三方页面提供 GitHub Token。
-2. 禁用 Probe 插件；确认 aiocqhttp/NapCat 已连接，插件配置 `enabled=true`，Yurisaki ID 默认为 `3889054356`，单平台时 `platform_id` 留空。
-3. 按 `docs/REAL_INTEGRATION.md` 的六项场景测试真实查询、响应拦截、并发、断线恢复和热重载。
-4. 下次只反馈 AstrBot/NapCat 版本、各场景通过/失败、脱敏错误行，以及去除 QQ 号和消息 ID 的一条真实 `/a info` 文本与 OneBot segment 类型；不要提供完整日志或任何凭据。
+1. 完成 README、CONTRIBUTING、SECURITY、CHANGELOG、issue 模板、安装包精简和隐私扫描。
+2. 在仓库根目录生成 `astrbot_plugin_yurisaki_bridge-test.zip`，确认包根含 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt` 和 `yurisaki_bridge/`，且不含测试、CI、缓存或本地数据。
+3. 许可证必须等待维护者明确选择 MIT、AGPL-3.0 或其他许可；不得自动创建 `LICENSE`。
+4. 许可证确认后才可进入 Milestone 6：公开仓库、创建 `v0.1.0` tag/Release；公开和发布市场属于外部操作，必须逐步说明且不得擅自执行。
 
-后续代理应先根据真实测试结果诊断；有缺陷时增加回归测试后修复。联调全部通过后进入 Milestone 5（开源完善），但许可证必须等待维护者选择。维护者已授权：测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。
+维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动公开仓库、发布 Release 或提交 AstrBot 插件市场。

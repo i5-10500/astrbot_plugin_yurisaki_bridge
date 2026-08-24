@@ -5,3 +5,12 @@
 *.jpeg binary
 *.gif binary
 *.webp binary
+
+# Keep locally generated installation archives small and free of development files.
+/.github export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/AGENTS.md export-ignore
+/pyproject.toml export-ignore
+/requirements-dev.txt export-ignore
+/tests export-ignore
