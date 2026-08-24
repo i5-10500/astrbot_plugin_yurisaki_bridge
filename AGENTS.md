@@ -40,13 +40,13 @@ ruff format --check .
 - 首次实机安装发现入口顶层导入导致 `No module named 'yurisaki_bridge'`；PR #6 已改为包内相对导入并增加 AstrBot 包加载上下文回归测试，修复提交已合并到 `main`。
 - `yurisaki_song_info(query)`、固定 `/a info` 命令、输入防注入、全局 single-flight、限速、超时、安全错误模型、严格 sender/self/time 匹配、响应拦截及热重载清理均已实现。
 - 本地共 51 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
-- 当前进入 Milestone 5（开源完善）。不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接在仓库根目录生成可安装 ZIP，再交给另一台电脑上传。
+- Milestone 5 的开源文档、issue 模板、隐私扫描和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
+- 不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接在仓库根目录生成可安装 ZIP，再交给另一台电脑上传。
 
 ## 接下来要做
 
-1. 完成 README、CONTRIBUTING、SECURITY、CHANGELOG、issue 模板、安装包精简和隐私扫描。
-2. 在仓库根目录生成 `astrbot_plugin_yurisaki_bridge-test.zip`，确认包根含 `main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt` 和 `yurisaki_bridge/`，且不含测试、CI、缓存或本地数据。
-3. 许可证必须等待维护者明确选择 MIT、AGPL-3.0 或其他许可；不得自动创建 `LICENSE`。
-4. 许可证确认后才可进入 Milestone 6：公开仓库、创建 `v0.1.0` tag/Release；公开和发布市场属于外部操作，必须逐步说明且不得擅自执行。
+1. 将官方完整 AGPL-3.0 文本、README 授权声明和许可证回归检查合并到 `main`。
+2. 基于最终 `main` 在仓库根目录重新生成 `astrbot_plugin_yurisaki_bridge-test.zip`，确认包根含 `LICENSE`、`main.py`、`metadata.yaml`、`_conf_schema.json`、`requirements.txt` 和 `yurisaki_bridge/`，且不含测试、CI、缓存或本地数据。
+3. 下一阶段是 Milestone 6：公开仓库、创建 `v0.1.0` tag/Release；公开和发布市场属于外部操作，必须逐步说明且不得擅自执行。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动公开仓库、发布 Release 或提交 AstrBot 插件市场。

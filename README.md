@@ -125,5 +125,8 @@ python -m pytest
 
 ## 许可证
 
-许可证尚未由维护者选择。在正式加入 `LICENSE` 之前，本仓库尚未授予公开复制、修改或再
-发布许可。
+Copyright (C) 2026 `i5-10500`。
+
+本项目采用 GNU Affero General Public License v3.0 or later（SPDX：
+`AGPL-3.0-or-later`）。你可以在该许可证条款下使用、修改和再发布；通过网络向用户提供
+修改版服务时，还需要按许可证要求向这些用户提供对应源码。完整条款见 [`LICENSE`](LICENSE)。

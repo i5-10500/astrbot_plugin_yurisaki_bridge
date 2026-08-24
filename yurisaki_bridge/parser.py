@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 i5-10500
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Convert OneBot message segments into stable bridge results."""
 
 import re
