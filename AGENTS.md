@@ -42,12 +42,13 @@ ruff format --check .
 - 本地共 55 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
 - 开源文档、issue 模板、隐私扫描、许可证和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
 - 公开发布前审计已完成，GitHub 仓库已设为 Public。annotated tag `v0.1.0` 和 GitHub Release 已创建，Release 资产 `astrbot_plugin_yurisaki_bridge-0.1.0.zip` 已从未登录公开地址下载复核；大小为 34,189 字节，SHA-256 为 `B78853014A4D7048DA902C573F497A5A32152BB80ADC4C6EC3529962FFBEF6A7`。
-- 不要在当前主机安装或配置 AstrBot/NapCat；需要发布资产实机复测时，直接在另一台电脑从 GitHub Release 下载 ZIP 并上传。
+- 维护者已在 AstrBot `4.25.1`、NapCat Core `4.18.9` 环境安装公开 Release 资产；插件加载、一次真实查询和热重载三项复验全部通过。
+- 官方市场清单中未发现同名、同 `plugin_id` 或同仓库记录；仓库侧 metadata 和发布资产检查通过。不要在当前主机安装或配置 AstrBot/NapCat。
 
 ## 接下来要做
 
-1. 在另一台电脑的 AstrBot 环境从 GitHub Release 下载并安装 v0.1.0 资产，至少复核插件加载、一次真实查询和热重载。
-2. 实机复测通过后，再单独检查 AstrBot 插件市场要求并由维护者授权提交市场。
+1. 当前官方流程要求维护者登录 `https://cloud.astrbot.app/publish`，提交仓库 URL `https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge`；不得索取、记录或共享 AstrBot Cloud 登录凭据。
+2. Cloud 提交后记录其创建的审核链接，继续跟进自动检查和审核意见；有缺陷时增加回归测试后修复。
 3. 后续代码改动继续执行 `docs/RELEASE_CHECKLIST.md` 中适用的检查，并为新版本重新生成安装 ZIP。
 
-维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布 GitHub Release 或提交 AstrBot 插件市场。
+维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。v0.1.0 市场提交已获授权，但必须由维护者本人在 AstrBot Cloud 登录页面完成最终提交。
