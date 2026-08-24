@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_PACKAGE = "astrbot_plugin_yurisaki_bridge"
 BOT_ID = "100001"
 YURISAKI_ID = "200002"
 
@@ -66,11 +67,20 @@ def plugin_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     monkeypatch.setitem(sys.modules, "astrbot.api.event", event_api)
     monkeypatch.setitem(sys.modules, "astrbot.api.star", star_api)
 
+    # AstrBot imports an installed plugin as a package below data.plugins. Ensure
+    # the entry point resolves its own modules through that package instead of
+    # relying on the repository root being present on sys.path.
+    plugin_package = ModuleType(PLUGIN_PACKAGE)
+    plugin_package.__path__ = [str(ROOT)]  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, PLUGIN_PACKAGE, plugin_package)
+    monkeypatch.setitem(sys.modules, "yurisaki_bridge", None)
+
     spec = importlib.util.spec_from_file_location(
-        "tested_plugin_main", ROOT / "main.py"
+        f"{PLUGIN_PACKAGE}.main", ROOT / "main.py"
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
