@@ -41,12 +41,13 @@ ruff format --check .
 - `yurisaki_song_info(query)`、固定 `/a info` 命令、输入防注入、全局 single-flight、限速、超时、安全错误模型、严格 sender/self/time 匹配、响应拦截及热重载清理均已实现。
 - 本地共 55 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
 - 开源文档、issue 模板、隐私扫描、许可证和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
-- 公开发布前审计已完成，GitHub 仓库已设为 Public；最终版本化安装 ZIP 已在仓库根目录生成。不要在当前主机安装或配置 AstrBot/NapCat；需要后续实机测试时，直接将该 ZIP 交给另一台电脑上传。
+- 公开发布前审计已完成，GitHub 仓库已设为 Public。annotated tag `v0.1.0` 和 GitHub Release 已创建，Release 资产 `astrbot_plugin_yurisaki_bridge-0.1.0.zip` 已从未登录公开地址下载复核；大小为 34,189 字节，SHA-256 为 `B78853014A4D7048DA902C573F497A5A32152BB80ADC4C6EC3529962FFBEF6A7`。
+- 不要在当前主机安装或配置 AstrBot/NapCat；需要发布资产实机复测时，直接在另一台电脑从 GitHub Release 下载 ZIP 并上传。
 
 ## 接下来要做
 
-1. 若维护者决定正式发布，单独创建 `v0.1.0` tag 和 GitHub Release，并上传最终版本化安装 ZIP。
-2. 提交 AstrBot 插件市场是另一个独立操作，需按市场要求单独检查和授权。
-3. 后续代码改动继续执行 `docs/RELEASE_CHECKLIST.md` 中适用的检查，并重新生成安装 ZIP。
+1. 在另一台电脑的 AstrBot 环境从 GitHub Release 下载并安装 v0.1.0 资产，至少复核插件加载、一次真实查询和热重载。
+2. 实机复测通过后，再单独检查 AstrBot 插件市场要求并由维护者授权提交市场。
+3. 后续代码改动继续执行 `docs/RELEASE_CHECKLIST.md` 中适用的检查，并为新版本重新生成安装 ZIP。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布 GitHub Release 或提交 AstrBot 插件市场。
