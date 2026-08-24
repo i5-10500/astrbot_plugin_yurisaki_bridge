@@ -19,6 +19,24 @@ def test_metadata_matches_package_version() -> None:
     assert metadata["support_platforms"] == ["aiocqhttp"]
 
 
+def test_repository_uses_agpl_v3_or_later() -> None:
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runtime_files = [
+        ROOT / "main.py",
+        *sorted((ROOT / "yurisaki_bridge").glob("*.py")),
+    ]
+
+    assert "GNU AFFERO GENERAL PUBLIC LICENSE" in license_text
+    assert "Version 3, 19 November 2007" in license_text
+    assert "AGPL-3.0-or-later" in readme
+    assert "Copyright (C) 2026 `i5-10500`" in readme
+    for runtime_file in runtime_files:
+        source = runtime_file.read_text(encoding="utf-8")
+        assert "SPDX-FileCopyrightText: 2026 i5-10500" in source
+        assert "SPDX-License-Identifier: AGPL-3.0-or-later" in source
+
+
 def test_architecture_modules_are_importable() -> None:
     for module_name in ("models", "parser", "service", "transport"):
         module = import_module(f"yurisaki_bridge.{module_name}")

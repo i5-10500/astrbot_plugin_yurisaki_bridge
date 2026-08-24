@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 i5-10500
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """JSON-serializable data models shared by bridge layers."""
 
 from dataclasses import dataclass, field
