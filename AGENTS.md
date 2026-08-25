@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库的 v0.1.1 已公开发布，v0.2.0 已完成开发与实机验收并进入发布流程。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.1 和 v0.2.0 已公开发布。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -56,13 +56,16 @@ ruff format --check .
   `46AA678B3E3DB84D231C00A297402A887B069875586F0F08690BD2554D1D3AA9`。
 - 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
 - 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
-- 维护者已明确授权创建 annotated `v0.2.0` tag 和 GitHub Release；必须从 tag 重建正式
-  ZIP，并复核公开下载，不得复用本地验收包。
+- annotated `v0.2.0` tag 和 GitHub Release 已创建；Tag 指向 `6a68467`，公开资产大小
+  41,307 字节，SHA-256 为
+  `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`，未认证公开下载
+  复核一致。
 
 ## 接下来要做
 
-1. 合并 v0.2.0 发布最终化 PR，创建 annotated tag，从 tag 重建并复核公开 ZIP。
-2. v0.2.0 发布完成后记录 Release URL、资产大小和 SHA-256。
-3. 随后进入 v0.3.0 preview；先探测音频协议，再决定实现，不依赖 Probe 源码。
+1. 进入 v0.3.0 preview；先以固定 `/a preview` 指令探测音频 OneBot 协议，不依赖 Probe
+   源码，不把调试入口合并到 `main`。
+2. 获得脱敏事件结构后，再决定单事件或有限多事件 collector、媒体生命周期和发送方式。
+3. 实现完成后仍须独立实机验收；未经维护者另行授权不得创建 v0.3.0 Tag/Release。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
