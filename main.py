@@ -4,6 +4,7 @@
 """AstrBot plugin entry point for Yurisaki Bridge."""
 
 import asyncio
+import ipaddress
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -112,6 +113,9 @@ class YurisakiBridgePlugin(Star):
             )
             return json.dumps(result.to_dict(), ensure_ascii=False)
 
+        # A validated, enabled random request gets one attempt per Agent event,
+        # including upstream or transport failures. This deliberately prevents
+        # planning loops from producing repeated songs and duplicate covers.
         if event.get_extra(_RANDOM_TOOL_EVENT_KEY):
             result = random_song_error(
                 "duplicate_tool_call",
@@ -248,7 +252,27 @@ def _login_user_id(login_info: object) -> str:
 def _safe_image_url(value: str | None) -> str | None:
     if not isinstance(value, str):
         return None
-    parsed = urlsplit(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+    except ValueError:
+        return None
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or hostname is None:
+        return None
+
+    normalized_hostname = hostname.rstrip(".").casefold()
+    if normalized_hostname == "localhost" or normalized_hostname.endswith(".localhost"):
+        return None
+
+    try:
+        address = ipaddress.ip_address(normalized_hostname)
+    except ValueError:
+        return value
+    if (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_unspecified
+    ):
         return None
     return value

@@ -34,12 +34,7 @@ def test_parse_normal_song_info_with_image() -> None:
             "曲师：tn-shi\nBPM：180\n版本：6.16\n上线日期：2026-07-30\n"
             "曲包：Memory Archive"
         ),
-        "images": [
-            {
-                "file": "synthetic-synthesis-cover",
-                "url": "https://example.invalid/synthesis.jpg",
-            }
-        ],
+        "image_count": 1,
         "canonical_title": "Synthesis.",
         "song_id": "542",
         "difficulties": ["4.0", "8.2", "9.7", "10.5"],
@@ -54,6 +49,48 @@ def test_parse_normal_song_info_with_image() -> None:
         "extra_fields": {},
     }
     json.dumps(payload, ensure_ascii=False)
+
+
+def test_song_info_result_does_not_expose_image_url() -> None:
+    payload = parse_song_info_response(
+        "test",
+        [
+            {
+                "type": "image",
+                "data": {"url": "https://temporary.example/secret.jpg"},
+            },
+            _text_segment("曲目: Test\nBPM: 180"),
+        ],
+    ).to_dict()
+
+    assert "images" not in payload
+    assert "https://temporary.example/secret.jpg" not in str(payload)
+
+
+def test_song_info_result_does_not_expose_image_file() -> None:
+    payload = parse_song_info_response(
+        "test",
+        [
+            {"type": "image", "data": {"file": "private-media-identifier"}},
+            _text_segment("曲目: Test\nBPM: 180"),
+        ],
+    ).to_dict()
+
+    assert "images" not in payload
+    assert "private-media-identifier" not in str(payload)
+
+
+def test_song_info_result_reports_image_count() -> None:
+    payload = parse_song_info_response(
+        "test",
+        [
+            {"type": "image", "data": {"file": "first"}},
+            {"type": "image", "data": {"url": "https://example.com/second"}},
+            _text_segment("曲目: Test\nBPM: 180"),
+        ],
+    ).to_dict()
+
+    assert payload["image_count"] == 2
 
 
 def test_field_order_and_missing_fields_are_tolerated() -> None:

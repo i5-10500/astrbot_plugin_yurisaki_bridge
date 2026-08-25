@@ -60,7 +60,7 @@ class SongInfoResult:
             "source": "Yurisaki",
             "query": self.query,
             "raw_text": self.raw_text,
-            "images": [image.to_dict() for image in self.images],
+            "image_count": len(self.images),
         }
         if not self.ok:
             if self.error is not None:

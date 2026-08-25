@@ -436,6 +436,38 @@ async def test_random_song_image_delivery_failure_is_safe(
 
 
 @pytest.mark.asyncio
+async def test_random_song_private_image_url_is_not_sent(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+    response = _raw_rand_response()
+    response["message"][0]["data"]["url"] = "http://127.0.0.1/private.jpg"  # type: ignore[index]
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(response)
+    payload = json.loads(await task)
+
+    assert payload["ok"] is True
+    assert payload["image_count"] == 1
+    assert payload["image_delivered"] is False
+    assert caller_event.sent_results == []
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
 async def test_tool_returns_safe_error_when_platform_is_unavailable(
     plugin_module: ModuleType,
 ) -> None:
@@ -512,11 +544,42 @@ def test_login_info_requires_numeric_user_id(plugin_module: ModuleType) -> None:
         plugin_module._login_user_id({"user_id": "not-numeric"})  # type: ignore[attr-defined]
 
 
-def test_random_image_url_requires_http_or_https(plugin_module: ModuleType) -> None:
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/image.jpg",
+        "http://images.example.com/image.jpg",
+    ],
+)
+def test_random_image_url_allows_public_http_urls(
+    plugin_module: ModuleType,
+    url: str,
+) -> None:
     safe_image_url = plugin_module._safe_image_url  # type: ignore[attr-defined]
 
-    assert safe_image_url("https://example.invalid/image.jpg") is not None
-    assert safe_image_url("http://example.invalid/image.jpg") is not None
-    assert safe_image_url("file:///private/path.jpg") is None
-    assert safe_image_url("javascript:alert(1)") is None
-    assert safe_image_url("not-a-url") is None
+    assert safe_image_url(url) == url
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/a.jpg",
+        "http://localhost/a.jpg",
+        "http://10.0.0.1/a.jpg",
+        "http://192.168.1.1/a.jpg",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://0.0.0.0/a.jpg",
+        "http://[::1]/a.jpg",
+        "http://[fc00::1]/a.jpg",
+        "file:///private/path.jpg",
+        "ftp://example.com/image.jpg",
+        "relative/image.jpg",
+    ],
+)
+def test_random_image_url_rejects_local_or_invalid_targets(
+    plugin_module: ModuleType,
+    url: str,
+) -> None:
+    safe_image_url = plugin_module._safe_image_url  # type: ignore[attr-defined]
+
+    assert safe_image_url(url) is None
