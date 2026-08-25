@@ -42,9 +42,8 @@ ruff format --check .
 - 新配置 `timeout_quarantine_seconds` 默认 5 秒。
 - v0.2.0 基础离线实现已完成：`yurisaki_random_song(difficulty="")`、受控 `/a rand`、随机响应 parser、
   原 caller 图片即时交付、同事件防重复调用及 URL/file 不进入 Tool JSON。
-- `metadata.yaml` 和包版本均为 `0.2.0`；PR #21 已合并无筛选随机曲目基线，PR #22 已合并
-  可选标级/定数白名单、筛选元数据及两种已知纯文本错误适配。112 项本地测试、Ruff 以及
-  GitHub Actions Python 3.12/3.13 均通过。
+- `metadata.yaml` 和包版本已准备为 `0.2.1`；v0.2.1 只做文档一致性、数据最小化和轻量
+  URL 安全加固，不增加业务命令。
 - 维护者完成 v0.1.1 三项实机回归并全部通过。一次 Agent 最终回答出现 Tool JSON 与 `raw_text` 中均不存在的信息，归类为模型幻觉，不是插件响应串台；不要据此增加猜测性 parser 规则。
 - 维护者已明确授权创建 annotated `v0.1.1` tag 和 GitHub Release；发布资产必须从 tag 重建并公开复核。
 - annotated `v0.1.1` tag 和 GitHub Release 已创建；公开资产大小 36,243 字节，SHA-256 为 `8A942DF5476E1D4E873AD8F3DD8F2A1609944DC1D106620263A284D0DCA2D544`。
@@ -60,12 +59,21 @@ ruff format --check .
   41,307 字节，SHA-256 为
   `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`，未认证公开下载
   复核一致。
+- `/a preview` 已明确放弃：真实链路仍会产生二次转码，OneBot 转发又只显示语音摘要。
+  主线已通过 PR #31 恢复到 v0.2.0 功能范围；不得恢复 preview 探针、Tool、配置或规划。
+- v0.2.1 将 `/a info` 的 Agent-facing 图片字段缩减为 `image_count`，内部 parser 仍保留
+  ImageReference；`/a rand` 发送前拒绝 localhost 和明显的本地/私有 IP literal。
+- v0.2.1 共 128 项本地测试通过，Ruff 检查与格式检查通过；等待 PR 的 Python 3.12/3.13
+  GitHub Actions 和三项真实 smoke test。
+- 项目在 v0.2.1 后进入 feature-complete、actively maintained 状态，只处理兼容性、
+  可靠性、parser 韧性和已复现缺陷。
 
 ## 接下来要做
 
-1. 进入 v0.3.0 preview；先以固定 `/a preview` 指令探测音频 OneBot 协议，不依赖 Probe
-   源码，不把调试入口合并到 `main`。
-2. 获得脱敏事件结构后，再决定单事件或有限多事件 collector、媒体生命周期和发送方式。
-3. 实现完成后仍须独立实机验收；未经维护者另行授权不得创建 v0.3.0 Tag/Release。
+1. 完成 v0.2.1 离线测试、Ruff 和 GitHub Actions 后，从合并后的 `main` 构建实机验收 ZIP。
+2. 维护者只需实测一次 `/a info synthesis`、一次无筛选 `/a rand` 和一次 `/a rand 10.7`，
+   确认 info payload 不含媒体引用，随机封面仍正常发送且无重复消息。
+3. 实机通过后先汇报；未经维护者另行授权不得创建 v0.2.1 Tag/GitHub Release，也不得重新
+   提交 AstrBot Cloud 市场。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。

@@ -92,6 +92,22 @@ SHA-256 为 `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`�
 GitHub 记录的 digest、本地 tag 构建结果及未带认证头的公开下载三者一致；Release 不是
 Draft 或 Prerelease。
 
+## v0.2.1 维护版本 smoke test（待验收）
+
+v0.2.1 不新增业务命令，也不重新测试已放弃的 preview 音频。安装从最终 `main` 构建的
+验收 ZIP 后，只需完成以下三项：
+
+1. 触发 `yurisaki_song_info("synthesis")`，确认别名/曲目信息正常，Tool Result 包含
+   `image_count`，且不包含图片 `url`、`file` 或临时媒体标识。
+2. 触发一次无筛选 `yurisaki_random_song(difficulty="")`，确认封面仍发送到原会话、
+   `image_delivered=true`，且没有重复图片或原始 Yurisaki 回复。
+3. 触发 `yurisaki_random_song(difficulty="10.7")`，确认筛选结果及封面正常，轻量 URL
+   检查没有误伤真实 QQ/Yurisaki CDN。
+
+反馈只需包含 AstrBot/NapCat 版本、三项通过/失败，以及失败时的脱敏错误行。不要提供完整
+日志、QQ 号、消息 ID、图片 URL 或任何凭据。三项全部通过后才能请求创建 v0.2.1 Tag 与
+GitHub Release。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：

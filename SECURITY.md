@@ -22,6 +22,21 @@
 
 ## Security boundaries
 
-本插件只允许固定 `/a info` 命令，校验输入，并严格匹配 Yurisaki sender、机器人 self ID
-和请求时间窗口。它仍依赖 AstrBot、aiocqhttp/NapCat、QQ 和 Yurisaki 的安全性与可用性；
-请保护这些系统的凭据并及时更新它们。
+本插件不会向 Agent 暴露任意 Yurisaki 命令执行能力。当前只允许插件内部生成：
+
+```text
+/a info <validated query>
+/a rand [validated difficulty]
+```
+
+Agent 不能控制目标 QQ、OneBot API 名称、任意 `/a` 子命令或 raw payload。查询输入经过
+单行、长度和控制字符校验；随机筛选只接受已确认的标级与定数白名单。响应还会严格匹配
+Yurisaki sender、机器人 self ID 和请求时间窗口。
+
+`/a info` 的 Agent-facing 结果不会包含图片 URL 或 file 标识；随机曲目图片引用只用于向
+原会话即时发送，并拒绝明显的 localhost、私有、回环和 link-local IP 目标。插件不会
+自行解析 DNS 或下载图片，因此该检查是针对可信上游媒体引用的轻量防御，不是通用网络
+代理安全边界。
+
+插件仍依赖 AstrBot、aiocqhttp/NapCat、QQ 和 Yurisaki 的安全性与可用性；请保护这些
+系统的凭据并及时更新它们。

@@ -29,12 +29,13 @@ python -m pytest
 
 ## 设计约束
 
-- 公开接口保持为受控的 `yurisaki_song_info(query)`，不要增加任意命令执行入口。
+- 公开接口保持为受控的 `yurisaki_song_info(query)` 与
+  `yurisaki_random_song(difficulty="")`，不要增加任意命令执行入口。
 - 不要复制、导入或依赖 Probe 插件源码。
 - OneBot 解析放在 `yurisaki_bridge/`，不要堆积到 `main.py`。
 - 网络 I/O 必须异步，并正确处理超时、取消和插件热重载。
 - 新 transport 必须在隔离的真实环境中验证。
-- 新 Yurisaki 命令必须先取得脱敏的真实响应样本并确认解析边界。
+- 当前没有增加其他 Yurisaki 命令的计划；曲目 preview 音频也已明确列为 non-goal。
 - 真实 QQ/Yurisaki 联调不得进入 CI。
 
 ## Commit 与 Pull Request
