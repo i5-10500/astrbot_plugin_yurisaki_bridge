@@ -42,8 +42,9 @@ ruff format --check .
 - 新配置 `timeout_quarantine_seconds` 默认 5 秒。
 - v0.2.0 基础离线实现已完成：`yurisaki_random_song(difficulty="")`、受控 `/a rand`、随机响应 parser、
   原 caller 图片即时交付、同事件防重复调用及 URL/file 不进入 Tool JSON。
-- `metadata.yaml` 和包版本均为 `0.2.0`；PR #21 已合并无筛选随机曲目基线，可选标级/定数
-  白名单、筛选元数据及两种已知纯文本错误适配已完成。本地共 112 项测试和 Ruff 检查通过。
+- `metadata.yaml` 和包版本均为 `0.2.0`；PR #21 已合并无筛选随机曲目基线，PR #22 已合并
+  可选标级/定数白名单、筛选元数据及两种已知纯文本错误适配。112 项本地测试、Ruff 以及
+  GitHub Actions Python 3.12/3.13 均通过。
 - 维护者完成 v0.1.1 三项实机回归并全部通过。一次 Agent 最终回答出现 Tool JSON 与 `raw_text` 中均不存在的信息，归类为模型幻觉，不是插件响应串台；不要据此增加猜测性 parser 规则。
 - 维护者已明确授权创建 annotated `v0.1.1` tag 和 GitHub Release；发布资产必须从 tag 重建并公开复核。
 - annotated `v0.1.1` tag 和 GitHub Release 已创建；公开资产大小 36,243 字节，SHA-256 为 `8A942DF5476E1D4E873AD8F3DD8F2A1609944DC1D106620263A284D0DCA2D544`。
@@ -55,8 +56,8 @@ ruff format --check .
 
 ## 接下来要做
 
-1. 从已合并筛选适配的 `main` 生成本地安装 ZIP。
-2. 维护者按 `docs/REAL_INTEGRATION.md` 的 v0.2.0 清单验证无筛选、标级、定数、错误捕获、
+1. 维护者安装从合并后 `main` 生成的 v0.2.0 本地测试 ZIP。
+2. 按 `docs/REAL_INTEGRATION.md` 的 v0.2.0 清单验证无筛选、标级、定数、错误捕获、
    图片交付、响应拦截和 info/rand 串行。
 3. 实机通过前不创建 v0.2.0 tag/Release，也不开始 v0.3.0 preview。
 
