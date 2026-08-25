@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库的 v0.1.1 已公开发布；v0.2.0 随机曲目功能正在开发。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.1 已公开发布，v0.2.0 已完成开发与实机验收并进入发布流程。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -56,12 +56,13 @@ ruff format --check .
   `46AA678B3E3DB84D231C00A297402A887B069875586F0F08690BD2554D1D3AA9`。
 - 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
 - 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
+- 维护者已明确授权创建 annotated `v0.2.0` tag 和 GitHub Release；必须从 tag 重建正式
+  ZIP，并复核公开下载，不得复用本地验收包。
 
 ## 接下来要做
 
-1. 等待维护者单独明确授权 annotated `v0.2.0` tag 和 GitHub Release；“继续开发”不等于
-   发布授权。
-2. 获得授权后更新 CHANGELOG 发布日期，从 tag 重建并复核公开 ZIP，不复用本地测试包。
-3. v0.2.0 发布完成后进入 v0.3.0 preview；先探测音频协议，再决定实现，不依赖 Probe 源码。
+1. 合并 v0.2.0 发布最终化 PR，创建 annotated tag，从 tag 重建并复核公开 ZIP。
+2. v0.2.0 发布完成后记录 Release URL、资产大小和 SHA-256。
+3. 随后进入 v0.3.0 preview；先探测音频协议，再决定实现，不依赖 Probe 源码。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。

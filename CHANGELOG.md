@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-25
+
 ### Added
 
 - 新增 Agent Tool `yurisaki_random_song(difficulty="")`，支持无条件随机以及严格白名单化的
