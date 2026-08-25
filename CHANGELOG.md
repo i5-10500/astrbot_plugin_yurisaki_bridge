@@ -5,7 +5,17 @@
 
 ## Unreleased
 
-当前没有尚未发布的变更。
+### Added
+
+- 新增无参数 Agent Tool `yurisaki_random_song()`，内部只执行固定 `/a rand`。
+- 根据三次真实脱敏响应增加单事件 `image → text` parser 和 fixture。
+- 随机曲目封面通过当前 `AstrMessageEvent` 即时发送到原会话；Tool JSON 不暴露临时图片
+  URL 或 file 值。
+- 同一 Agent 事件最多执行一次随机曲目 Tool，避免规划循环重复发图。
+
+### Changed
+
+- 歌曲字段解析新增 `曲侧` 和 `艺术家` 别名。
 
 ## 0.1.1 - 2026-08-25
 

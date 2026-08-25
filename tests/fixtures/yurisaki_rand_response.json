@@ -1,0 +1,18 @@
+[
+  {
+    "type": "image",
+    "data": {
+      "file": "sanitized-rand-cover",
+      "file_size": 0,
+      "sub_type": 0,
+      "summary": "[图片]",
+      "url": "https://example.invalid/rand-cover.jpg"
+    }
+  },
+  {
+    "type": "text",
+    "data": {
+      "text": "为您推荐的曲目是：\n曲目：Hypnotize\n难度：3.5 / 7.0 / 8.9 / 9.9\n物量：518 / 761 / 993 / 1164\n谱面设计：én / én / én / én × nitro「The Radical」\n曲侧：Conflict\n艺术家：rejection\nBPM：160\n版本：5.9\n上线日期：2024-07-30\n曲包：Absolute Nihil"
+    }
+  }
+]

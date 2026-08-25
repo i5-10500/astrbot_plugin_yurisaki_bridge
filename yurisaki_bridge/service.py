@@ -6,8 +6,8 @@
 import unicodedata
 from typing import Any
 
-from .models import BridgeError, SongInfoResult
-from .parser import parse_song_info_response
+from .models import BridgeError, RandomSongResult, SongInfoResult
+from .parser import parse_random_song_response, parse_song_info_response
 from .transport import (
     ResponseTimeoutError,
     SendFailedError,
@@ -24,7 +24,7 @@ class QueryValidationError(ValueError):
 
 
 class YurisakiService:
-    """Build the only allowed command and return stable, safe payloads."""
+    """Build fixed supported commands and return stable, safe results."""
 
     def __init__(self, transport: YurisakiTransport) -> None:
         self._transport = transport
@@ -76,6 +76,39 @@ class YurisakiService:
                 "The Yurisaki response could not be parsed.",
             )
 
+    async def random_song(self) -> RandomSongResult:
+        """Run only ``/a rand`` and parse its proven single-event response."""
+        try:
+            segments = await self._transport.request("/a rand")
+        except TransportUnavailableError:
+            return random_song_error(
+                "transport_unavailable",
+                "Yurisaki transport is not available.",
+            )
+        except SendFailedError:
+            return random_song_error(
+                "send_failed",
+                "The random-song query could not be sent to Yurisaki.",
+            )
+        except ResponseTimeoutError:
+            return random_song_error(
+                "timeout",
+                "Yurisaki did not respond before the timeout.",
+            )
+        except TransportShuttingDownError:
+            return random_song_error(
+                "plugin_shutting_down",
+                "The plugin is shutting down.",
+            )
+
+        try:
+            return parse_random_song_response(segments)
+        except Exception:
+            return random_song_error(
+                "parse_error",
+                "The Yurisaki random-song response could not be parsed.",
+            )
+
 
 def normalize_query(query: object) -> str:
     """Return a bounded single-line query suitable for a fixed command."""
@@ -92,6 +125,15 @@ def normalize_query(query: object) -> str:
 def unavailable_payload(query: object, message: str) -> dict[str, Any]:
     """Build an unavailable result before the service can be constructed."""
     return _error_payload(_safe_query(query), "transport_unavailable", message)
+
+
+def random_song_error(error_type: str, message: str) -> RandomSongResult:
+    """Build a safe random-song failure result."""
+    return RandomSongResult(
+        raw_text="",
+        ok=False,
+        error=BridgeError(error_type=error_type, message=message),
+    )
 
 
 def _safe_query(query: object) -> str:

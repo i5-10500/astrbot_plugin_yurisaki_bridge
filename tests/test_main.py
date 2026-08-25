@@ -159,9 +159,28 @@ class FakeEvent:
     def __init__(self, raw_message: object) -> None:
         self.message_obj = SimpleNamespace(raw_message=raw_message)
         self.stopped = False
+        self.sent_results: list[object] = []
+        self.extras: dict[str, object] = {}
 
     def stop_event(self) -> None:
         self.stopped = True
+
+    def image_result(self, source: str) -> dict[str, str]:
+        return {"image": source}
+
+    async def send(self, result: object) -> None:
+        self.sent_results.append(result)
+
+    def get_extra(self, key: str) -> object | None:
+        return self.extras.get(key)
+
+    def set_extra(self, key: str, value: object) -> None:
+        self.extras[key] = value
+
+
+class FailingSendEvent(FakeEvent):
+    async def send(self, result: object) -> None:
+        raise RuntimeError(f"sensitive delivery detail: {result}")
 
 
 def _raw_response() -> dict[str, object]:
@@ -174,6 +193,30 @@ def _raw_response() -> dict[str, object]:
         "message_id": 123,
         "message": [{"type": "text", "data": {"text": "曲目: Test\nBPM: 180"}}],
     }
+
+
+def _raw_rand_response() -> dict[str, object]:
+    response = _raw_response()
+    response["message_id"] = 456
+    response["message"] = [
+        {
+            "type": "image",
+            "data": {
+                "file": "private-file",
+                "url": "https://example.invalid/random.jpg",
+            },
+        },
+        {
+            "type": "text",
+            "data": {
+                "text": (
+                    "为您推荐的曲目是：\n曲目：Random Song\n"
+                    "艺术家：Test Artist\nBPM：180"
+                )
+            },
+        },
+    ]
+    return response
 
 
 @pytest.mark.asyncio
@@ -211,6 +254,119 @@ async def test_tool_runs_fixed_command_and_intercepts_response(
 
     await plugin.terminate()
     assert client.handlers == []
+
+
+@pytest.mark.asyncio
+async def test_random_song_tool_sends_image_to_original_event(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+    other_event = FakeEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    raw_response = _raw_rand_response()
+    await client.emit(raw_response)
+    intercept_event = FakeEvent(raw_response)
+    await plugin.intercept_yurisaki_response(intercept_event)
+    serialized = await task
+    payload = json.loads(serialized)
+
+    assert client.calls[1] == (
+        "send_private_msg",
+        {"user_id": int(YURISAKI_ID), "message": "/a rand"},
+    )
+    assert caller_event.sent_results == [
+        {"image": "https://example.invalid/random.jpg"}
+    ]
+    assert other_event.sent_results == []
+    assert payload["ok"] is True
+    assert payload["canonical_title"] == "Random Song"
+    assert payload["image_count"] == 1
+    assert payload["image_delivered"] is True
+    assert "https://example.invalid/random.jpg" not in serialized
+    assert "private-file" not in serialized
+    assert intercept_event.stopped is True
+
+    duplicate = json.loads(await plugin.yurisaki_random_song(caller_event))
+    assert duplicate["error"]["type"] == "duplicate_tool_call"
+    assert len(client.calls) == 2
+    assert len(caller_event.sent_results) == 1
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_random_song_missing_image_is_not_sent(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_response())
+    payload = json.loads(await task)
+
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "incomplete_response"
+    assert caller_event.sent_results == []
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_random_song_image_delivery_failure_is_safe(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FailingSendEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_rand_response())
+    serialized = await task
+    payload = json.loads(serialized)
+    records = "\n".join(plugin_module.logger.records)  # type: ignore[attr-defined]
+
+    assert payload["ok"] is True
+    assert payload["image_delivered"] is False
+    assert "example.invalid" not in serialized
+    assert "example.invalid" not in records
+    assert "private-file" not in records
+
+    await plugin.terminate()
 
 
 @pytest.mark.asyncio
@@ -288,3 +444,13 @@ async def test_debug_logging_does_not_include_bot_account(
 def test_login_info_requires_numeric_user_id(plugin_module: ModuleType) -> None:
     with pytest.raises(RuntimeError, match="valid user_id"):
         plugin_module._login_user_id({"user_id": "not-numeric"})  # type: ignore[attr-defined]
+
+
+def test_random_image_url_requires_http_or_https(plugin_module: ModuleType) -> None:
+    safe_image_url = plugin_module._safe_image_url  # type: ignore[attr-defined]
+
+    assert safe_image_url("https://example.invalid/image.jpg") is not None
+    assert safe_image_url("http://example.invalid/image.jpg") is not None
+    assert safe_image_url("file:///private/path.jpg") is None
+    assert safe_image_url("javascript:alert(1)") is None
+    assert safe_image_url("not-a-url") is None
