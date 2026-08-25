@@ -51,14 +51,17 @@ ruff format --check .
 - 三次 `/a rand` 受限探测均确认单 event、`image → text`、无 reply、无延迟拆包；脱敏 fixture 已保存。
 - v0.2.0 随机 Tool 仅允许空值或已确认的标级/定数白名单，内部只生成 `/a rand` 及一个
   白名单参数；图片只即时发送到原 Tool caller，Tool JSON 不得暴露临时 URL/file 值。
+- 维护者已使用合并后测试包完成 v0.2.0 六项实机验收：无筛选、标级 `8+`、定数 `10.7`、
+  非法值恢复、图片/响应拦截及 info/rand 串行均通过。验收包 SHA-256 为
+  `46AA678B3E3DB84D231C00A297402A887B069875586F0F08690BD2554D1D3AA9`。
 - 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
 - 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
 
 ## 接下来要做
 
-1. 维护者安装从合并后 `main` 生成的 v0.2.0 本地测试 ZIP。
-2. 按 `docs/REAL_INTEGRATION.md` 的 v0.2.0 清单验证无筛选、标级、定数、错误捕获、
-   图片交付、响应拦截和 info/rand 串行。
-3. 实机通过前不创建 v0.2.0 tag/Release，也不开始 v0.3.0 preview。
+1. 等待维护者单独明确授权 annotated `v0.2.0` tag 和 GitHub Release；“继续开发”不等于
+   发布授权。
+2. 获得授权后更新 CHANGELOG 发布日期，从 tag 重建并复核公开 ZIP，不复用本地测试包。
+3. v0.2.0 发布完成后进入 v0.3.0 preview；先探测音频协议，再决定实现，不依赖 Probe 源码。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
