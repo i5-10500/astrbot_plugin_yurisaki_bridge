@@ -20,6 +20,21 @@
 `4.18.9` 环境完成发布后复验。插件加载、一次真实查询和热重载后三项检查全部通过，未再出现
 `No module named 'yurisaki_bridge'`。
 
+## v0.1.1 针对性回归（待验收）
+
+v0.1.1 增加超时响应隔离期和歌曲信息结构校验。请使用本次交付的
+`astrbot_plugin_yurisaki_bridge-0.1.1.zip` 覆盖安装，并保持 Probe 插件禁用。
+
+1. 保持 `timeout_seconds=15`、`timeout_quarantine_seconds=5`，查询
+   `synthesis`，确认 Agent 得到正常曲目信息，原始 Yurisaki 私聊回复仍被拦截。
+2. 临时将 `timeout_seconds` 调为 `0.1`，发起查询 A，等待其报告超时后立即发起不同的
+   查询 B。确认 A 的迟到回复没有成为 B 的结果，B 会在安静窗口结束后正常发送并完成。
+3. 再次制造查询超时，立即发起查询 B，并在 B 等待隔离期时重载插件。确认 B 安全结束；
+   将 `timeout_seconds` 恢复为 `15` 后，新查询能够正常完成且没有重复回复。
+
+如果本机延迟低到 `0.1` 秒仍不会超时，可暂时改为更小的正数。测试完成后务必恢复
+`timeout_seconds=15`；`timeout_quarantine_seconds` 保持默认 5 秒。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：

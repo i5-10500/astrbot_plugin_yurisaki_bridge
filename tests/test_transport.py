@@ -47,12 +47,44 @@ class FakeClient:
         return results
 
 
+class ManualClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.sleep_calls: asyncio.Queue[float] = asyncio.Queue()
+        self._sleepers: list[tuple[float, asyncio.Future[None]]] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    async def sleep(self, delay: float) -> None:
+        future = asyncio.get_running_loop().create_future()
+        self._sleepers.append((self.now + delay, future))
+        self.sleep_calls.put_nowait(delay)
+        await future
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+        for deadline, future in self._sleepers:
+            if deadline <= self.now and not future.done():
+                future.set_result(None)
+        self._sleepers = [
+            (deadline, future)
+            for deadline, future in self._sleepers
+            if not future.done()
+        ]
+
+    async def wait_for_sleep(self) -> float:
+        async with asyncio.timeout(0.2):
+            return await self.sleep_calls.get()
+
+
 def _config(**overrides: object) -> TransportConfig:
     values = {
         "yurisaki_user_id": YURISAKI_ID,
         "self_id": BOT_ID,
         "timeout_seconds": 0.2,
         "min_request_interval": 0.0,
+        "timeout_quarantine_seconds": 0.0,
     }
     values.update(overrides)
     return TransportConfig(**values)  # type: ignore[arg-type]
@@ -205,6 +237,164 @@ async def test_timeout_clears_pending_and_late_response_is_ignored() -> None:
 
 
 @pytest.mark.asyncio
+async def test_timeout_enters_quarantine() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    assert transport.is_quarantined is True
+    assert await transport.consume_event(_event(message_id=124)) is True
+    assert transport.was_consumed(_event(message_id=124)) is True
+
+
+@pytest.mark.asyncio
+async def test_new_request_waits_for_quarantine() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    assert await clock.wait_for_sleep() == 5.0
+    assert len(client.calls) == 1
+
+    second.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await second
+
+
+@pytest.mark.asyncio
+async def test_quarantine_without_late_response_expires() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    await clock.wait_for_sleep()
+    clock.advance(5.0)
+    await _wait_for_calls(client, 2)
+
+    assert transport.is_quarantined is False
+    await client.emit(_event(message_id=456))
+    await second
+
+
+@pytest.mark.asyncio
+async def test_timeout_then_new_request_then_old_response_arrives() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    await clock.wait_for_sleep()
+    clock.advance(2.0)
+    assert await transport.consume_event(_event(message_id=124)) is True
+    assert await clock.wait_for_sleep() == 5.0
+
+    clock.advance(3.0)
+    await asyncio.sleep(0)
+    assert len(client.calls) == 1
+    clock.advance(2.0)
+    await _wait_for_calls(client, 2)
+
+    await client.emit(_event(message_id=456))
+    assert await second == _event()["message"]
+
+
+@pytest.mark.asyncio
+async def test_multiple_late_responses_extend_quarantine() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    await clock.wait_for_sleep()
+    clock.advance(1.0)
+    assert await transport.consume_event(_event(message_id=124)) is True
+    await clock.wait_for_sleep()
+    clock.advance(1.0)
+    assert await transport.consume_event(_event(message_id=125)) is True
+    await clock.wait_for_sleep()
+
+    clock.advance(4.0)
+    await asyncio.sleep(0)
+    assert len(client.calls) == 1
+    clock.advance(1.0)
+    await _wait_for_calls(client, 2)
+    await client.emit(_event(message_id=456))
+    await second
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_quarantine() -> None:
+    client = FakeClient()
+    clock = ManualClock()
+    transport = YurisakiTransport(
+        client,
+        _config(timeout_seconds=0.01, timeout_quarantine_seconds=5.0),
+        wall_clock=lambda: 1_000.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+    transport.start()
+    with pytest.raises(ResponseTimeoutError):
+        await transport.request("/a info first")
+
+    second = asyncio.create_task(transport.request("/a info second"))
+    await clock.wait_for_sleep()
+    await transport.shutdown()
+
+    with pytest.raises(TransportShuttingDownError):
+        await second
+    assert len(client.calls) == 1
+
+
+@pytest.mark.asyncio
 async def test_cancellation_clears_pending() -> None:
     client = FakeClient()
     transport = YurisakiTransport(client, _config())
@@ -306,6 +496,8 @@ def test_invalid_transport_config_is_rejected() -> None:
         _config(timeout_seconds=0)
     with pytest.raises(ValueError, match="cannot be negative"):
         _config(min_request_interval=-1)
+    with pytest.raises(ValueError, match="cannot be negative"):
+        _config(timeout_quarantine_seconds=-1)
 
 
 @pytest.mark.asyncio

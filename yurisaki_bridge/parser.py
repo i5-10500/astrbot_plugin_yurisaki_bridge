@@ -32,6 +32,7 @@ _FIELD_ALIASES = {
     "曲包": "pack",
 }
 _LIST_FIELDS = {"difficulties", "note_counts", "charters"}
+_IDENTITY_FIELDS = {"canonical_title", "song_id"}
 
 
 def extract_message_content(
@@ -96,6 +97,13 @@ def parse_song_info_response(
     for field_name, value in parsed_fields.items():
         setattr(result, field_name, value)
 
+    if not _has_song_info_shape(parsed_fields):
+        result.ok = False
+        result.error = BridgeError(
+            error_type="invalid_response",
+            message="Yurisaki response did not match the expected song info format.",
+        )
+
     return result
 
 
@@ -107,6 +115,21 @@ def _split_list(value: str) -> list[str]:
     if not value:
         return []
     return [item for item in _LIST_SEPARATOR.split(value) if item]
+
+
+def _has_song_info_shape(fields: Mapping[str, str | list[str]]) -> bool:
+    has_identity = any(_has_value(fields.get(name)) for name in _IDENTITY_FIELDS)
+    has_detail = any(
+        name not in _IDENTITY_FIELDS and _has_value(value)
+        for name, value in fields.items()
+    )
+    return has_identity and has_detail
+
+
+def _has_value(value: str | list[str] | None) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    return bool(value)
 
 
 def _optional_string(value: object) -> str | None:

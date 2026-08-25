@@ -69,9 +69,10 @@ def test_field_order_and_missing_fields_are_tolerated() -> None:
 def test_unknown_and_duplicate_fields_are_preserved() -> None:
     result = parse_song_info_response(
         "test",
-        [_text_segment("曲目: Test\n新字段: alpha\n新字段: beta")],
+        [_text_segment("曲目: Test\nBPM: 180\n新字段: alpha\n新字段: beta")],
     )
 
+    assert result.ok is True
     assert result.extra_fields == {"新字段": "alpha", "新字段#2": "beta"}
 
 
@@ -94,17 +95,53 @@ def test_unicode_title_and_full_width_colon_are_supported() -> None:
     assert result.artist == "Artist Ω"
 
 
-def test_unexpected_text_degrades_to_raw_text() -> None:
+def test_nonempty_unrelated_text_is_not_success() -> None:
     result = parse_song_info_response(
         "test", [_text_segment("服务暂时繁忙，请稍后再试")]
     )
 
-    assert result.ok is True
+    assert result.ok is False
     assert result.canonical_title is None
     assert result.raw_text == "服务暂时繁忙，请稍后再试"
+    assert result.error is not None
+    assert result.error.error_type == "invalid_response"
 
 
-def test_empty_text_returns_safe_failure() -> None:
+def test_partial_valid_info_is_success() -> None:
+    result = parse_song_info_response(
+        "test",
+        [_text_segment("曲目: Test Song\nBPM: 180")],
+    )
+
+    assert result.ok is True
+    assert result.canonical_title == "Test Song"
+    assert result.bpm == "180"
+
+
+def test_valid_info_with_unknown_fields_is_success() -> None:
+    result = parse_song_info_response(
+        "test",
+        [_text_segment("曲目ID: 42\n曲师: Test Artist\n未来字段: value")],
+    )
+
+    assert result.ok is True
+    assert result.song_id == "42"
+    assert result.artist == "Test Artist"
+    assert result.extra_fields == {"未来字段": "value"}
+
+
+def test_invalid_response_keeps_raw_text() -> None:
+    payload = parse_song_info_response(
+        "test",
+        [_text_segment("提示: 服务暂时繁忙")],
+    ).to_dict()
+
+    assert payload["ok"] is False
+    assert payload["raw_text"] == "提示: 服务暂时繁忙"
+    assert payload["error"]["type"] == "invalid_response"
+
+
+def test_empty_response_is_invalid() -> None:
     payload = parse_song_info_response(
         "test",
         [{"type": "image", "data": {"file": "cover"}}],
