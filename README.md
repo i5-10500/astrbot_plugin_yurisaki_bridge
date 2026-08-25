@@ -6,8 +6,9 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 
 ## 当前状态
 
-v0.1.0 已经完成离线测试和真实环境联调。2026-08-24 的实机验收覆盖了
-真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和插件热重载；详细边界见
+v0.1.0 已经完成离线测试、真实环境联调和公开发布。当前 `main` 为 v0.1.1
+开发版本，修复超时后迟到响应可能污染下一次查询的问题，并收紧歌曲信息响应校验；
+发布前仍需完成一次针对性实机回归。详细边界见
 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
 
 当前支持：
@@ -37,7 +38,7 @@ https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 也可以克隆仓库后，从最新 `main` 生成本地安装包：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.0.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.1.zip main
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -53,6 +54,8 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.0.zip main
 - `platform_id`：只有一个 aiocqhttp 平台时留空；多个平台时填写目标平台 ID。
 - `timeout_seconds`：等待私聊响应的最长时间，默认 15 秒。
 - `min_request_interval`：所有会话共享的最小请求间隔，默认 2 秒。
+- `timeout_quarantine_seconds`：查询超时后的安静窗口，默认 5 秒；窗口内收到
+  Yurisaki 消息会丢弃该消息并重新计时。
 - `debug_logging`：仅排查连接问题时启用；日志不会记录私聊正文或机器人 QQ 号。
 
 插件启动时会尝试连接；若 NapCat 尚未就绪，会在首次 Tool 调用时自动重试。
@@ -85,17 +88,20 @@ Transport 负责 OneBot 私聊、超时、限速和回调；Parser 将文本与 
 结构化结果。
 
 Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 single-flight，同一时间只
-允许一个在途查询。这会牺牲并发吞吐量，但可以避免不同用户的响应串台。
+允许一个在途查询。这会牺牲并发吞吐量，但可以避免不同用户的响应串台。查询超时后还会
+进入可配置的全局隔离期；迟到响应会被丢弃并延长隔离期，安静窗口结束后才会发送下一条
+命令。
 
 ## 常见问题
 
-- **安装时报 `No module named 'yurisaki_bridge'`**：删除旧插件副本，重新安装 v0.1.0
+- **安装时报 `No module named 'yurisaki_bridge'`**：删除旧插件副本，重新安装 v0.1.1
   或更新版本。
 - **找不到 aiocqhttp 平台**：确认 NapCat 已连接；多平台环境还要填写正确的
   `platform_id`。
 - **无法发送私聊**：确认机器人 QQ 能主动私聊目标账号，并检查 NapCat 的连接状态。
 - **查询超时**：确认 Yurisaki 在线且能回复 `/a info`，必要时适当增加
-  `timeout_seconds`。
+  `timeout_seconds`；超时后的新查询还会等待 `timeout_quarantine_seconds` 指定的
+  安静窗口。
 - **出现重复响应**：禁用 Probe 或其他监听同一 Yurisaki 私聊的插件，然后重载本插件。
 - **重连后仍不可用**：确认 AstrBot 已重新收到 aiocqhttp 平台连接，再发起一个新查询。
 
@@ -105,8 +111,9 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 ## 隐私与安全
 
 插件不会主动收集普通群友聊天正文。原始事件监听器只接受目标 Yurisaki 账号、当前机器人
-账号和当前请求时间窗口同时匹配的私聊响应；响应正文只用于完成本次 Tool 调用。默认日志
-只记录必要元数据，不记录私聊正文。
+账号和当前请求时间窗口同时匹配的私聊响应；超时隔离期内来自目标账号的迟到响应只会被
+丢弃和拦截。响应正文只用于完成本次 Tool 调用。默认日志只记录必要元数据，不记录私聊
+正文。
 
 更多报告要求见 [`SECURITY.md`](SECURITY.md)。
 

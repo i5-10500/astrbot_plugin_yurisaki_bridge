@@ -172,7 +172,7 @@ def _raw_response() -> dict[str, object]:
         "self_id": int(BOT_ID),
         "time": int(time.time()),
         "message_id": 123,
-        "message": [{"type": "text", "data": {"text": "曲目: Test"}}],
+        "message": [{"type": "text", "data": {"text": "曲目: Test\nBPM: 180"}}],
     }
 
 

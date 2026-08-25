@@ -74,6 +74,7 @@ def test_plugin_configuration_schema_has_safe_defaults() -> None:
     assert schema["yurisaki_user_id"]["default"] == "3889054356"
     assert schema["timeout_seconds"]["default"] > 0
     assert schema["min_request_interval"]["default"] >= 0
+    assert schema["timeout_quarantine_seconds"]["default"] >= 0
     assert schema["debug_logging"]["default"] is False
 
 

@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库的 v0.1.0 实现和真实环境验收已完成。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.0 已公开发布；v0.1.1 离线实现已完成，等待针对性真实环境回归。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -36,19 +36,19 @@ ruff format --check .
 
 ## 当前交接状态（2026-08-25）
 
-- 真实查询、命令与响应拦截、并发串行、NapCat 重连恢复和查询中热重载均在另一台电脑通过；Probe 插件未参与。详细结果和第五项的测试边界见 `docs/REAL_INTEGRATION.md`。
-- 首次实机安装发现入口顶层导入导致 `No module named 'yurisaki_bridge'`；PR #6 已改为包内相对导入并增加 AstrBot 包加载上下文回归测试，修复提交已合并到 `main`。
-- `yurisaki_song_info(query)`、固定 `/a info` 命令、输入防注入、全局 single-flight、限速、超时、安全错误模型、严格 sender/self/time 匹配、响应拦截及热重载清理均已实现。
-- 本地共 55 项测试通过；GitHub Actions 的 Python 3.12、3.13 检查通过。
-- 开源文档、issue 模板、隐私扫描、许可证和安装包精简已完成。维护者选择 `AGPL-3.0-or-later`，版权以公开化名 `i5-10500` 标识；不要写入维护者真实姓名。
-- 公开发布前审计已完成，GitHub 仓库已设为 Public。annotated tag `v0.1.0` 和 GitHub Release 已创建，Release 资产 `astrbot_plugin_yurisaki_bridge-0.1.0.zip` 已从未登录公开地址下载复核；大小为 34,189 字节，SHA-256 为 `B78853014A4D7048DA902C573F497A5A32152BB80ADC4C6EC3529962FFBEF6A7`。
-- 维护者已在 AstrBot `4.25.1`、NapCat Core `4.18.9` 环境安装公开 Release 资产；插件加载、一次真实查询和热重载三项复验全部通过。
-- 官方市场清单中未发现同名、同 `plugin_id` 或同仓库记录；仓库侧 metadata 和发布资产检查通过。不要在当前主机安装或配置 AstrBot/NapCat。
+- v0.1.0 的真实查询、响应拦截、并发串行、NapCat 重连恢复和热重载均已在 AstrBot `4.25.1`、NapCat Core `4.18.9` 通过；公开 tag、Release 和安装资产已经复核。
+- v0.1.1 新增全局超时响应隔离期：超时后下一请求等待安静窗口，迟到响应会被丢弃并重新计时；等待期间热重载可安全中断。
+- v0.1.1 收紧解析成功条件：响应必须包含曲名或曲目 ID，以及至少一个其他已知字段；未知字段仍可容忍，失败结果仍保留 `raw_text`。
+- 新配置 `timeout_quarantine_seconds` 默认 5 秒；`metadata.yaml` 和包版本均为 `0.1.1`。
+- 本地共 64 项测试通过，`ruff check .` 和 `ruff format --check .` 通过；下一步等待 GitHub Actions 的 Python 3.12、3.13 检查及合并。
+- 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
+- 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
 
 ## 接下来要做
 
-1. 当前官方流程要求维护者登录 `https://cloud.astrbot.app/publish`，提交仓库 URL `https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge`；不得索取、记录或共享 AstrBot Cloud 登录凭据。
-2. Cloud 提交后记录其创建的审核链接，继续跟进自动检查和审核意见；有缺陷时增加回归测试后修复。
-3. 后续代码改动继续执行 `docs/RELEASE_CHECKLIST.md` 中适用的检查，并为新版本重新生成安装 ZIP。
+1. CI 与 PR 合并后，从合并后的 `main` 生成 `astrbot_plugin_yurisaki_bridge-0.1.1.zip`，检查包根目录和敏感残留。
+2. 维护者在另一台电脑覆盖安装该 ZIP，按 `docs/REAL_INTEGRATION.md` 的“v0.1.1 针对性回归”测试正常查询、超时后连续查询和隔离期热重载。
+3. 下次只反馈三项通过/失败，以及必要的脱敏错误行；不要提供账号、消息 ID、Token 或完整日志。
+4. 实机回归通过前不要创建 v0.1.1 tag/Release，也不要开始 v0.2.0。
 
-维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。v0.1.0 市场提交已获授权，但必须由维护者本人在 AstrBot Cloud 登录页面完成最终提交。
+维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。

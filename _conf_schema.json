@@ -28,6 +28,12 @@
     "default": 2.0,
     "hint": "所有会话共享此限速，避免短时间连续请求。"
   },
+  "timeout_quarantine_seconds": {
+    "description": "超时响应隔离期（秒）",
+    "type": "float",
+    "default": 5.0,
+    "hint": "查询超时后延迟下一次发送；隔离期内收到 Yurisaki 消息会重新计时，避免旧回复污染新查询。"
+  },
   "debug_logging": {
     "description": "启用调试日志",
     "type": "bool",

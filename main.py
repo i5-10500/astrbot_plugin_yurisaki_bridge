@@ -122,6 +122,9 @@ class YurisakiBridgePlugin(Star):
                 min_request_interval=float(
                     self.config.get("min_request_interval", 2.0)
                 ),
+                timeout_quarantine_seconds=float(
+                    self.config.get("timeout_quarantine_seconds", 5.0)
+                ),
             )
             transport = YurisakiTransport(client, transport_config)
             transport.start()
