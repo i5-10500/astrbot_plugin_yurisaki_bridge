@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库的 v0.1.0 已公开发布；v0.1.1 离线实现已完成，等待针对性真实环境回归。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.0 已公开发布；v0.1.1 离线检查和针对性真实环境回归均已完成，等待明确的 Release 授权。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -40,15 +40,15 @@ ruff format --check .
 - v0.1.1 新增全局超时响应隔离期：超时后下一请求等待安静窗口，迟到响应会被丢弃并重新计时；等待期间热重载可安全中断。
 - v0.1.1 收紧解析成功条件：响应必须包含曲名或曲目 ID，以及至少一个其他已知字段；未知字段仍可容忍，失败结果仍保留 `raw_text`。
 - 新配置 `timeout_quarantine_seconds` 默认 5 秒；`metadata.yaml` 和包版本均为 `0.1.1`。
-- 本地共 64 项测试通过，`ruff check .` 和 `ruff format --check .` 通过；下一步等待 GitHub Actions 的 Python 3.12、3.13 检查及合并。
+- PR #18 已合并；本地共 64 项测试及 GitHub Actions Python 3.12/3.13 通过，`ruff check .` 和 `ruff format --check .` 通过。
+- 维护者完成 v0.1.1 三项实机回归并全部通过。一次 Agent 最终回答出现 Tool JSON 与 `raw_text` 中均不存在的信息，归类为模型幻觉，不是插件响应串台；不要据此增加猜测性 parser 规则。
 - 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
 - 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
 
 ## 接下来要做
 
-1. CI 与 PR 合并后，从合并后的 `main` 生成 `astrbot_plugin_yurisaki_bridge-0.1.1.zip`，检查包根目录和敏感残留。
-2. 维护者在另一台电脑覆盖安装该 ZIP，按 `docs/REAL_INTEGRATION.md` 的“v0.1.1 针对性回归”测试正常查询、超时后连续查询和隔离期热重载。
-3. 下次只反馈三项通过/失败，以及必要的脱敏错误行；不要提供账号、消息 ID、Token 或完整日志。
-4. 实机回归通过前不要创建 v0.1.1 tag/Release，也不要开始 v0.2.0。
+1. v0.1.1 已达到发布条件，但创建 tag/GitHub Release 仍需维护者明确授权；不得从“继续开发”推断发布许可。
+2. 获得并完成 v0.1.1 Release 授权后进入 v0.2.0；先制作只执行固定 `/a rand` 的受限协议探测包，捕获并脱敏 OneBot raw payload。
+3. 在获得 `/a rand` 的 event 数量、segment 顺序、text/image 字段和拆包行为前，不正式实现 `yurisaki_random_song()`。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
