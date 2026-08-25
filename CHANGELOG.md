@@ -5,6 +5,17 @@
 
 ## Unreleased
 
+## 0.2.2 - 2026-08-25
+
+### Changed
+
+- 将 `AGENTS.md` 精简为长期有效的开发、架构与安全规则，移除版本发布流水账和任务交接。
+- 将真实集成测试方法与长期协议事实分别整理到 `docs/INTEGRATION_TESTING.md` 和
+  `docs/PROTOCOL_NOTES.md`，删除混合历史记录的旧文档。
+- 移除 README 安装、状态和 FAQ 中容易过期的 patch 版本硬编码，并保持维护模式和最终
+  功能边界清晰。
+- 更新 Bug Report 模板，使用不绑定历史版本的插件版本提示。
+
 ## 0.2.1 - 2026-08-25
 
 ### Changed
