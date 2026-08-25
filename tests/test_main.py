@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_PACKAGE = "astrbot_plugin_yurisaki_bridge"
 BOT_ID = "100001"
 YURISAKI_ID = "200002"
+PREVIEW_FILE_REFERENCE = "0123456789abcdef0123456789abcdef"
 
 
 class FakeLogger:
@@ -132,11 +133,11 @@ class FakeClient:
             await handler(event)
 
 
-class ForwardFailingClient(FakeClient):
+class RecordReferenceFailingClient(FakeClient):
     async def call_action(self, action: str, **params: object) -> Any:
-        if action.startswith("forward_"):
+        if isinstance(params.get("message"), list):
             self.calls.append((action, params))
-            raise RuntimeError("native forwarding is unavailable")
+            raise RuntimeError("record-reference delivery is unavailable")
         return await super().call_action(action, **params)
 
 
@@ -267,7 +268,7 @@ def _raw_preview_record() -> dict[str, object]:
         {
             "type": "record",
             "data": {
-                "file": "private-audio-id",
+                "file": PREVIEW_FILE_REFERENCE,
                 "path": "C:/private/cache.wav",
                 "url": "https://example.invalid/preview.wav?token=private",
             },
@@ -494,16 +495,16 @@ async def test_random_song_image_delivery_failure_is_safe(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("group_id", "forward_action", "destination"),
+    ("group_id", "send_action", "destination"),
     [
-        ("", "forward_friend_single_msg", {"user_id": 300003}),
-        ("400004", "forward_group_single_msg", {"group_id": 400004}),
+        ("", "send_private_msg", {"user_id": 300003}),
+        ("400004", "send_group_msg", {"group_id": 400004}),
     ],
 )
 async def test_preview_tool_sends_audio_only_to_original_event(
     plugin_module: ModuleType,
     group_id: str,
-    forward_action: str,
+    send_action: str,
     destination: dict[str, int],
 ) -> None:
     client = FakeClient()
@@ -545,12 +546,20 @@ async def test_preview_tool_sends_audio_only_to_original_event(
     assert payload["audio_delivered"] is True
     assert caller_event.sent_results == []
     assert client.calls[2] == (
-        forward_action,
-        {"message_id": 701, **destination},
+        send_action,
+        {
+            "message": [
+                {
+                    "type": "record",
+                    "data": {"file": PREVIEW_FILE_REFERENCE},
+                }
+            ],
+            **destination,
+        },
     )
     assert other_event.sent_results == []
     assert "example.invalid" not in serialized
-    assert "private-audio-id" not in serialized
+    assert PREVIEW_FILE_REFERENCE not in serialized
     assert text_intercept.stopped is True
     assert record_intercept.stopped is True
 
@@ -600,7 +609,7 @@ async def test_preview_invalid_or_disabled_never_reaches_transport(
 async def test_preview_audio_delivery_failure_is_safe(
     plugin_module: ModuleType,
 ) -> None:
-    client = ForwardFailingClient()
+    client = RecordReferenceFailingClient()
     plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
         FakeContext([FakePlatform(client)]),
         {
@@ -626,16 +635,16 @@ async def test_preview_audio_delivery_failure_is_safe(
     assert payload["audio_delivered"] is False
     assert "example.invalid" not in serialized
     assert "example.invalid" not in records
-    assert "private-audio-id" not in records
+    assert PREVIEW_FILE_REFERENCE not in records
 
     await plugin.terminate()
 
 
 @pytest.mark.asyncio
-async def test_preview_native_forward_failure_uses_record_fallback(
+async def test_preview_record_reference_failure_uses_record_fallback(
     plugin_module: ModuleType,
 ) -> None:
-    client = ForwardFailingClient()
+    client = RecordReferenceFailingClient()
     plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
         FakeContext([FakePlatform(client)]),
         {
@@ -656,7 +665,7 @@ async def test_preview_native_forward_failure_uses_record_fallback(
     payload = json.loads(await task)
 
     assert payload["audio_delivered"] is True
-    assert client.calls[2][0] == "forward_friend_single_msg"
+    assert client.calls[2][0] == "send_private_msg"
     record = caller_event.sent_results[0]["chain"][0]  # type: ignore[index]
     assert isinstance(record, FakeRecord)
     assert record.url.startswith("https://example.invalid/preview.wav")
@@ -753,3 +762,11 @@ def test_random_image_url_requires_http_or_https(plugin_module: ModuleType) -> N
     safe_media_url = plugin_module._safe_media_url  # type: ignore[attr-defined]
     assert safe_media_url("https://example.invalid/audio.wav") is not None
     assert safe_media_url("file:///private/audio.wav") is None
+
+    safe_file_reference = plugin_module._safe_napcat_file_reference  # type: ignore[attr-defined]
+    assert safe_file_reference(PREVIEW_FILE_REFERENCE) == PREVIEW_FILE_REFERENCE
+    assert safe_file_reference("ABCDEF0123456789ABCDEF0123456789") is not None
+    assert safe_file_reference("too-short") is None
+    assert safe_file_reference("g" * 32) is None
+    assert safe_file_reference("C:/private/cache.silk") is None
+    assert safe_file_reference("https://example.invalid/audio.silk") is None
