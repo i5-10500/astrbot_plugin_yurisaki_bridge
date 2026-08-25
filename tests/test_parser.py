@@ -347,10 +347,7 @@ def test_preview_parser_accepts_record_then_text_and_unknown_segments() -> None:
         [
             [
                 {"type": "unknown", "data": {"large": "x" * 10_000}},
-                {
-                    "type": "record",
-                    "data": {"file": "audio-id", "message_id": "123"},
-                },
+                {"type": "record", "data": {"file": "audio-id"}},
             ],
             [_text_segment("曲目: Test Song")],
         ],
@@ -359,7 +356,6 @@ def test_preview_parser_accepts_record_then_text_and_unknown_segments() -> None:
     assert result.ok is True
     assert result.canonical_title == "Test Song"
     assert result.raw_text == "曲目: Test Song"
-    assert result.audio[0].message_id == 123
 
 
 def test_preview_parser_rejects_missing_or_unexpected_parts() -> None:

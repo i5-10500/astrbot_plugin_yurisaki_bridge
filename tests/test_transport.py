@@ -570,18 +570,7 @@ async def test_preview_waits_for_text_then_audio() -> None:
     assert await transport.consume_event(record_event) is True
     events = await request
 
-    assert events == [
-        text_event["message"],
-        [
-            {
-                "type": "record",
-                "data": {
-                    "url": "https://example.invalid/preview.wav",
-                    "message_id": 124,
-                },
-            }
-        ],
-    ]
+    assert events == [text_event["message"], record_event["message"]]
     assert client.calls[0][1]["message"] == "/a preview synthesis"
 
 
@@ -606,15 +595,7 @@ async def test_preview_accepts_audio_then_text_or_one_combined_event() -> None:
     ]
     await client.emit(_event(message_id=126, message=combined_message))
 
-    assert await combined == [
-        [
-            combined_message[0],
-            {
-                "type": "record",
-                "data": {"file": "audio-id", "message_id": 126},
-            },
-        ]
-    ]
+    assert await combined == [combined_message]
 
 
 @pytest.mark.asyncio
@@ -681,10 +662,7 @@ async def test_preview_collector_retains_only_bounded_required_fields() -> None:
         [
             {
                 "type": "record",
-                "data": {
-                    "url": "https://example.invalid/preview.wav",
-                    "message_id": 141,
-                },
+                "data": {"url": "https://example.invalid/preview.wav"},
             }
         ],
     ]

@@ -11,15 +11,16 @@
   info/rand 的输入校验、全局 single-flight、限速、响应拦截和超时隔离。
 - 根据三次真实脱敏探测增加有限多事件 collector：曲名文本与 `record` 都到齐才完成，支持
   text/audio 任意顺序和单事件组合，部分响应超时返回 `incomplete_response`。
-- 音频交付优先使用 NapCat 单条消息原生转发，把 Yurisaki 的原始 `record` 直接转发到
-  原 Tool 会话；不支持该接口时回退 AstrBot `Record` 消息链。
-- 临时 URL、file、path 和源消息 ID 不进入 Tool JSON 或日志，也不由插件下载或缓存。
+- 音频交付优先把 NapCat 入站 `record.data.file` 标识作为受限 OneBot 语音段直发到原
+  Tool 会话；发送失败时回退 AstrBot `Record` 消息链。
+- 临时 URL、file 和 path 不进入 Tool JSON 或日志，也不由插件下载或缓存。
 - 新增 `enable_preview_tool` 配置和同一 Agent 事件防重复调用保护。
 
 ### Fixed
 
 - 避免 AstrBot aiocqhttp 将 `Record` 统一转换为 base64 后触发 NapCat 再次 Silk 编码；
   私聊与群聊目标均严格取自原 Tool 事件。
+- 不再使用会把私聊语音退化成 `[语音] 时长` 文字摘要的 NapCat 单条消息转发接口。
 - transport 同时兼容 Python 3.10 的 `asyncio.TimeoutError` 和新版 Python 的内置
   `TimeoutError`，避免正常超时被误报为未知错误。
 

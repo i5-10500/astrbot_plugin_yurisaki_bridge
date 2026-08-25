@@ -107,10 +107,13 @@ Draft 或 Prerelease。
 
 因此 v0.3.0 使用与 info/rand 共用的全局 single-flight，有限收集同一请求的候选事件，只有
 曲名文本和 `record` 同时到齐才完成。实机发现 AstrBot aiocqhttp 会把 `Record` 组件先转换
-为 base64，NapCat 随后提示“需要转换成 silk”，会形成额外一轮有损编码。正式交付现在优先
-保留源 `record` 的消息 ID，并调用 NapCat 单条消息原生转发接口；接口不可用时才回退
-AstrBot `Record` 消息链。所有临时媒体引用和源消息 ID 仍不向 Agent 暴露、不进入日志，也不
-由插件下载或缓存。脱敏合成 fixture 位于 `tests/fixtures/yurisaki_preview_response.json`。
+为 base64，NapCat 随后提示“需要转换成 silk”，会形成额外一轮有损编码。首次替代方案使用
+NapCat 单条消息转发，但实机只能得到 `[语音] 20\"` 形式的文字摘要，不能播放。当前方案
+改为绕过 AstrBot `Record`，把入站 `record.data.file` 标识作为受限 OneBot `record` 段直接
+发送给 NapCat；NapCat 可通过该标识反解原语音元素，并会在文件已经是 Silk 时跳过转换。
+该路径失败时才回退 AstrBot `Record`。所有临时媒体引用仍不向 Agent 暴露、不进入插件日志，
+也不由插件下载或缓存。脱敏合成 fixture 位于
+`tests/fixtures/yurisaki_preview_response.json`。
 
 首次探针曾在 AstrBot 随附的 Python 3.10 上把观察窗口的 `asyncio.TimeoutError` 误报为
 探针失败；正式 transport 已兼容捕获该异常，并有离线回归测试。该问题与 ffmpeg 无关。

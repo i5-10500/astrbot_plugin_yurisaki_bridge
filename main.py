@@ -5,6 +5,7 @@
 
 import asyncio
 import json
+import string
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlsplit
@@ -250,7 +251,7 @@ class YurisakiBridgePlugin(Star):
         event: AstrMessageEvent,
         result: SongPreviewResult,
     ) -> None:
-        if await self._forward_preview_audio(event, result):
+        if await self._send_preview_record_reference(event, result):
             result.audio_delivered = True
             return
 
@@ -272,22 +273,23 @@ class YurisakiBridgePlugin(Star):
             return
         result.audio_delivered = True
 
-    async def _forward_preview_audio(
+    async def _send_preview_record_reference(
         self,
         event: AstrMessageEvent,
         result: SongPreviewResult,
     ) -> bool:
-        """Use NapCat's native forwarding before falling back to Record delivery."""
+        """Reuse NapCat's captured record reference before the HTTPS fallback."""
         transport = self._transport
-        message_id = next(
+        file_reference = next(
             (
-                audio.message_id
+                safe_reference
                 for audio in result.audio
-                if audio.message_id is not None
+                if (safe_reference := _safe_napcat_file_reference(audio.file))
+                is not None
             ),
             None,
         )
-        if transport is None or message_id is None:
+        if transport is None or file_reference is None:
             return False
 
         group_id = _decimal_id(event.get_group_id())
@@ -296,14 +298,14 @@ class YurisakiBridgePlugin(Star):
             return False
 
         try:
-            await transport.forward_preview_message(
-                message_id,
+            await transport.send_preview_record(
+                file_reference,
                 user_id=user_id,
                 group_id=group_id,
             )
         except Exception:
             logger.warning(
-                "Native preview forwarding unavailable; falling back to Record delivery"
+                "Preview record-reference delivery unavailable; falling back to Record"
             )
             return False
         return True
@@ -384,6 +386,14 @@ def _decimal_id(value: object) -> int | None:
 
 def _safe_image_url(value: str | None) -> str | None:
     return _safe_media_url(value)
+
+
+def _safe_napcat_file_reference(value: str | None) -> str | None:
+    if not isinstance(value, str) or len(value) != 32:
+        return None
+    if any(character not in string.hexdigits for character in value):
+        return None
+    return value
 
 
 def _safe_media_url(value: str | None) -> str | None:
