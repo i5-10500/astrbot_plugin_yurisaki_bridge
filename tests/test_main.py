@@ -132,6 +132,14 @@ class FakeClient:
             await handler(event)
 
 
+class ForwardFailingClient(FakeClient):
+    async def call_action(self, action: str, **params: object) -> Any:
+        if action.startswith("forward_"):
+            self.calls.append((action, params))
+            raise RuntimeError("native forwarding is unavailable")
+        return await super().call_action(action, **params)
+
+
 class SlowLoginClient(FakeClient):
     def __init__(self) -> None:
         super().__init__()
@@ -165,8 +173,16 @@ class FakeContext:
 
 
 class FakeEvent:
-    def __init__(self, raw_message: object) -> None:
+    def __init__(
+        self,
+        raw_message: object,
+        *,
+        sender_id: str = "300003",
+        group_id: str = "",
+    ) -> None:
         self.message_obj = SimpleNamespace(raw_message=raw_message)
+        self.sender_id = sender_id
+        self.group_id = group_id
         self.stopped = False
         self.sent_results: list[object] = []
         self.extras: dict[str, object] = {}
@@ -188,6 +204,12 @@ class FakeEvent:
 
     def set_extra(self, key: str, value: object) -> None:
         self.extras[key] = value
+
+    def get_sender_id(self) -> str:
+        return self.sender_id
+
+    def get_group_id(self) -> str:
+        return self.group_id
 
 
 class FailingSendEvent(FakeEvent):
@@ -471,8 +493,18 @@ async def test_random_song_image_delivery_failure_is_safe(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("group_id", "forward_action", "destination"),
+    [
+        ("", "forward_friend_single_msg", {"user_id": 300003}),
+        ("400004", "forward_group_single_msg", {"group_id": 400004}),
+    ],
+)
 async def test_preview_tool_sends_audio_only_to_original_event(
     plugin_module: ModuleType,
+    group_id: str,
+    forward_action: str,
+    destination: dict[str, int],
 ) -> None:
     client = FakeClient()
     plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
@@ -486,7 +518,7 @@ async def test_preview_tool_sends_audio_only_to_original_event(
         },
     )
     await plugin.initialize()
-    caller_event = FakeEvent({})
+    caller_event = FakeEvent({}, group_id=group_id)
     other_event = FakeEvent({})
 
     task = asyncio.create_task(
@@ -511,10 +543,11 @@ async def test_preview_tool_sends_audio_only_to_original_event(
     assert payload["canonical_title"] == "Synthesis."
     assert payload["audio_count"] == 1
     assert payload["audio_delivered"] is True
-    assert len(caller_event.sent_results) == 1
-    record = caller_event.sent_results[0]["chain"][0]  # type: ignore[index]
-    assert isinstance(record, FakeRecord)
-    assert record.url.startswith("https://example.invalid/preview.wav")
+    assert caller_event.sent_results == []
+    assert client.calls[2] == (
+        forward_action,
+        {"message_id": 701, **destination},
+    )
     assert other_event.sent_results == []
     assert "example.invalid" not in serialized
     assert "private-audio-id" not in serialized
@@ -523,8 +556,8 @@ async def test_preview_tool_sends_audio_only_to_original_event(
 
     duplicate = json.loads(await plugin.yurisaki_song_preview(caller_event, "test"))
     assert duplicate["error"]["type"] == "duplicate_tool_call"
-    assert len(client.calls) == 2
-    assert len(caller_event.sent_results) == 1
+    assert len(client.calls) == 3
+    assert caller_event.sent_results == []
 
     await plugin.terminate()
 
@@ -567,7 +600,7 @@ async def test_preview_invalid_or_disabled_never_reaches_transport(
 async def test_preview_audio_delivery_failure_is_safe(
     plugin_module: ModuleType,
 ) -> None:
-    client = FakeClient()
+    client = ForwardFailingClient()
     plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
         FakeContext([FakePlatform(client)]),
         {
@@ -594,6 +627,39 @@ async def test_preview_audio_delivery_failure_is_safe(
     assert "example.invalid" not in serialized
     assert "example.invalid" not in records
     assert "private-audio-id" not in records
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_preview_native_forward_failure_uses_record_fallback(
+    plugin_module: ModuleType,
+) -> None:
+    client = ForwardFailingClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "enable_preview_tool": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_song_preview(caller_event, "test"))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_preview_text())
+    await client.emit(_raw_preview_record())
+    payload = json.loads(await task)
+
+    assert payload["audio_delivered"] is True
+    assert client.calls[2][0] == "forward_friend_single_msg"
+    record = caller_event.sent_results[0]["chain"][0]  # type: ignore[index]
+    assert isinstance(record, FakeRecord)
+    assert record.url.startswith("https://example.invalid/preview.wav")
 
     await plugin.terminate()
 

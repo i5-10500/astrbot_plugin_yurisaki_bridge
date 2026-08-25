@@ -157,6 +157,36 @@ class YurisakiTransport:
         """Collect a bounded preview response until text and record both arrive."""
         return await self._request(command, response_kind="preview")
 
+    async def forward_preview_message(
+        self,
+        message_id: int,
+        *,
+        user_id: int | None = None,
+        group_id: int | None = None,
+    ) -> None:
+        """Ask NapCat to forward one captured preview message unchanged."""
+        if not self.is_running:
+            raise TransportUnavailableError("Yurisaki transport is not running")
+        if (user_id is None) == (group_id is None):
+            raise ValueError("exactly one preview destination is required")
+
+        action = (
+            "forward_group_single_msg"
+            if group_id is not None
+            else "forward_friend_single_msg"
+        )
+        destination = (
+            {"group_id": group_id} if group_id is not None else {"user_id": user_id}
+        )
+        try:
+            await self._client.call_action(
+                action,
+                message_id=message_id,
+                **destination,
+            )
+        except Exception as exc:
+            raise SendFailedError("Failed to forward preview audio") from exc
+
     async def _request(
         self,
         command: str,
@@ -337,7 +367,10 @@ class YurisakiTransport:
             if not has_text:
                 return False
         else:
-            retained_message = _preview_segments(message)
+            retained_message = _preview_segments(
+                message,
+                message_id=_onebot_message_id(event.get("message_id")),
+            )
             has_text = _has_text_segment(retained_message)
             has_record = _has_record_segment(retained_message)
             if not has_text and not has_record:
@@ -411,7 +444,11 @@ def _has_record_segment(message: list[object]) -> bool:
     return False
 
 
-def _preview_segments(message: list[object]) -> list[object]:
+def _preview_segments(
+    message: list[object],
+    *,
+    message_id: int | None = None,
+) -> list[object]:
     retained: list[object] = []
     for segment in message:
         if len(retained) >= _MAX_PREVIEW_SEGMENTS_PER_EVENT:
@@ -438,8 +475,23 @@ def _preview_segments(message: list[object]) -> list[object]:
                 is not None
             }
             if references:
+                if message_id is not None:
+                    references["message_id"] = message_id
                 retained.append({"type": "record", "data": references})
     return retained
+
+
+def _onebot_message_id(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _bounded_string(value: object, maximum_length: int) -> str | None:

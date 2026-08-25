@@ -106,9 +106,11 @@ Draft 或 Prerelease。
 - 两条 event 都没有 reply；三次都未出现第三条候选 event。
 
 因此 v0.3.0 使用与 info/rand 共用的全局 single-flight，有限收集同一请求的候选事件，只有
-曲名文本和 `record` 同时到齐才完成。音频 URL 只通过 AstrBot 正规 `Record` 消息链立即
-发送，不向 Agent 暴露、不下载、不缓存，也不预先使用 ffmpeg 转码。脱敏合成 fixture 位于
-`tests/fixtures/yurisaki_preview_response.json`。
+曲名文本和 `record` 同时到齐才完成。实机发现 AstrBot aiocqhttp 会把 `Record` 组件先转换
+为 base64，NapCat 随后提示“需要转换成 silk”，会形成额外一轮有损编码。正式交付现在优先
+保留源 `record` 的消息 ID，并调用 NapCat 单条消息原生转发接口；接口不可用时才回退
+AstrBot `Record` 消息链。所有临时媒体引用和源消息 ID 仍不向 Agent 暴露、不进入日志，也不
+由插件下载或缓存。脱敏合成 fixture 位于 `tests/fixtures/yurisaki_preview_response.json`。
 
 首次探针曾在 AstrBot 随附的 Python 3.10 上把观察窗口的 `asyncio.TimeoutError` 误报为
 探针失败；正式 transport 已兼容捕获该异常，并有离线回归测试。该问题与 ffmpeg 无关。
@@ -120,7 +122,7 @@ Draft 或 Prerelease。
 
 1. 明确要求试听 `synthesis`，确认 Agent 只调用一次
    `yurisaki_song_preview(query="synthesis")`，原会话收到一条可播放语音，随后 Agent
-   文字中的曲名与 Tool JSON 一致。
+   文字中的曲名与 Tool JSON 一致；同时确认 NapCat 本次发送不再出现“需要转换成 silk”。
 2. 确认用户会话中不出现 `/a preview ...` 或 Yurisaki 原始曲名/语音；语音不重复发送，
    Tool JSON 不含 URL、file 或 path。
 3. 在同一轮中让 Agent 尝试再次试听，确认不会产生第二条 QQ 命令或第二条语音。

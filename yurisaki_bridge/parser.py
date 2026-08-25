@@ -178,6 +178,7 @@ def parse_preview_response(
                     file=_optional_string(data.get("file")),
                     url=_optional_string(data.get("url")),
                     path=_optional_string(data.get("path")),
+                    message_id=_optional_message_id(data.get("message_id")),
                 )
                 if any((reference.file, reference.url, reference.path)):
                     audio.append(reference)
@@ -200,6 +201,19 @@ def parse_preview_response(
     else:
         result.canonical_title = title_match.group("title")
     return result
+
+
+def _optional_message_id(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _parse_fields(
