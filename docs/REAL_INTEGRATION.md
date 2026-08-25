@@ -92,10 +92,10 @@ SHA-256 为 `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`�
 GitHub 记录的 digest、本地 tag 构建结果及未带认证头的公开下载三者一致；Release 不是
 Draft 或 Prerelease。
 
-## v0.2.1 维护版本 smoke test（待验收）
+## v0.2.1 维护版本 smoke test（2026-08-25）
 
-v0.2.1 不新增业务命令，也不重新测试已放弃的 preview 音频。安装从最终 `main` 构建的
-验收 ZIP 后，只需完成以下三项：
+v0.2.1 不新增业务命令，也没有重新测试已放弃的 preview 音频。维护者安装从 PR #32
+合并后 `main` 构建的验收 ZIP，并完成以下三项，结果全部通过：
 
 1. 触发 `yurisaki_song_info("synthesis")`，确认别名/曲目信息正常，Tool Result 包含
    `image_count`，且不包含图片 `url`、`file` 或临时媒体标识。
@@ -104,9 +104,9 @@ v0.2.1 不新增业务命令，也不重新测试已放弃的 preview 音频。�
 3. 触发 `yurisaki_random_song(difficulty="10.7")`，确认筛选结果及封面正常，轻量 URL
    检查没有误伤真实 QQ/Yurisaki CDN。
 
-反馈只需包含 AstrBot/NapCat 版本、三项通过/失败，以及失败时的脱敏错误行。不要提供完整
-日志、QQ 号、消息 ID、图片 URL 或任何凭据。三项全部通过后才能请求创建 v0.2.1 Tag 与
-GitHub Release。
+本次反馈未重复提供 AstrBot/NapCat 版本，也没有报告错误行、重复图片、原始 Yurisaki
+回复、临时媒体值泄漏或正常 CDN 被误伤。维护者随后授权创建 v0.2.1 Tag 与 GitHub
+Release。
 
 ## 1. 准备隔离环境
 

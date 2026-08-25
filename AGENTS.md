@@ -63,17 +63,16 @@ ruff format --check .
   主线已通过 PR #31 恢复到 v0.2.0 功能范围；不得恢复 preview 探针、Tool、配置或规划。
 - v0.2.1 将 `/a info` 的 Agent-facing 图片字段缩减为 `image_count`，内部 parser 仍保留
   ImageReference；`/a rand` 发送前拒绝 localhost 和明显的本地/私有 IP literal。
-- v0.2.1 共 128 项本地测试通过，Ruff 检查与格式检查通过；等待 PR 的 Python 3.12/3.13
-  GitHub Actions 和三项真实 smoke test。
+- v0.2.1 共 128 项本地测试、Ruff、Python 3.12/3.13 GitHub Actions 和三项真实 smoke
+  test 全部通过；本次实机反馈未重复提供 AstrBot/NapCat 版本，也没有错误行。
 - 项目在 v0.2.1 后进入 feature-complete、actively maintained 状态，只处理兼容性、
   可靠性、parser 韧性和已复现缺陷。
 
 ## 接下来要做
 
-1. 完成 v0.2.1 离线测试、Ruff 和 GitHub Actions 后，从合并后的 `main` 构建实机验收 ZIP。
-2. 维护者只需实测一次 `/a info synthesis`、一次无筛选 `/a rand` 和一次 `/a rand 10.7`，
-   确认 info payload 不含媒体引用，随机封面仍正常发送且无重复消息。
-3. 实机通过后先汇报；未经维护者另行授权不得创建 v0.2.1 Tag/GitHub Release，也不得重新
-   提交 AstrBot Cloud 市场。
+1. 维护者已授权创建 annotated v0.2.1 Tag 与 GitHub Release；必须从最终 tag 重建正式
+   ZIP，并复核 GitHub digest、公开下载和本地构建一致。
+2. 发布后记录 tag 提交、资产大小和 SHA-256，并确认 v0.2.0 Tag/Release 未被修改。
+3. 不重新提交 AstrBot Cloud 市场；后续只进入兼容性、可靠性和已复现缺陷维护。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
