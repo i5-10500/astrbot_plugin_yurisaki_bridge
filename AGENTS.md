@@ -65,14 +65,17 @@ ruff format --check .
   ImageReference；`/a rand` 发送前拒绝 localhost 和明显的本地/私有 IP literal。
 - v0.2.1 共 128 项本地测试、Ruff、Python 3.12/3.13 GitHub Actions 和三项真实 smoke
   test 全部通过；本次实机反馈未重复提供 AstrBot/NapCat 版本，也没有错误行。
+- annotated `v0.2.1` tag 和 GitHub Release 已创建；Tag 指向 `2a834c0`，公开资产大小
+  43,802 字节，SHA-256 为
+  `529133C18177F66BB81EBF457DD065372AC6DBB67A868A12006A58B7BB34D4AF`，GitHub digest、
+  本地 tag 构建和未认证公开下载三者一致。
 - 项目在 v0.2.1 后进入 feature-complete、actively maintained 状态，只处理兼容性、
   可靠性、parser 韧性和已复现缺陷。
 
 ## 接下来要做
 
-1. 维护者已授权创建 annotated v0.2.1 Tag 与 GitHub Release；必须从最终 tag 重建正式
-   ZIP，并复核 GitHub digest、公开下载和本地构建一致。
-2. 发布后记录 tag 提交、资产大小和 SHA-256，并确认 v0.2.0 Tag/Release 未被修改。
-3. 不重新提交 AstrBot Cloud 市场；后续只进入兼容性、可靠性和已复现缺陷维护。
+1. 项目当前进入 maintenance mode；没有新的 Yurisaki 命令开发计划。
+2. 后续只在 Yurisaki 协议、AstrBot/NapCat API 变化或可靠复现缺陷时启动维护周期。
+3. 不重新提交 AstrBot Cloud 市场；任何后续 Tag/Release 仍需维护者单独授权。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
