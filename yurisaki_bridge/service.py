@@ -7,14 +7,9 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
-from .models import BridgeError, RandomSongResult, SongInfoResult, SongPreviewResult
-from .parser import (
-    parse_preview_response,
-    parse_random_song_response,
-    parse_song_info_response,
-)
+from .models import BridgeError, RandomSongResult, SongInfoResult
+from .parser import parse_random_song_response, parse_song_info_response
 from .transport import (
-    IncompleteResponseError,
     ResponseTimeoutError,
     SendFailedError,
     TransportShuttingDownError,
@@ -157,61 +152,6 @@ class YurisakiService:
                 random_filter,
             )
 
-    async def song_preview(self, query: object) -> SongPreviewResult:
-        """Validate a title, run ``/a preview``, and parse both response events."""
-        try:
-            normalized_query = normalize_query(query)
-        except QueryValidationError:
-            return preview_error(
-                _safe_query(query),
-                "invalid_query",
-                "Query must be 1-120 characters and contain no control characters.",
-            )
-
-        try:
-            events = await self._transport.request_preview(
-                f"/a preview {normalized_query}"
-            )
-        except TransportUnavailableError:
-            return preview_error(
-                normalized_query,
-                "transport_unavailable",
-                "Yurisaki transport is not available.",
-            )
-        except SendFailedError:
-            return preview_error(
-                normalized_query,
-                "send_failed",
-                "The preview query could not be sent to Yurisaki.",
-            )
-        except IncompleteResponseError:
-            return preview_error(
-                normalized_query,
-                "incomplete_response",
-                "Yurisaki did not return both preview text and audio in time.",
-            )
-        except ResponseTimeoutError:
-            return preview_error(
-                normalized_query,
-                "timeout",
-                "Yurisaki did not respond before the timeout.",
-            )
-        except TransportShuttingDownError:
-            return preview_error(
-                normalized_query,
-                "plugin_shutting_down",
-                "The plugin is shutting down.",
-            )
-
-        try:
-            return parse_preview_response(normalized_query, events)
-        except Exception:
-            return preview_error(
-                normalized_query,
-                "parse_error",
-                "The Yurisaki preview response could not be parsed.",
-            )
-
 
 def normalize_query(query: object) -> str:
     """Return a bounded single-line query suitable for a fixed command."""
@@ -247,11 +187,6 @@ def unavailable_payload(query: object, message: str) -> dict[str, Any]:
     return _error_payload(_safe_query(query), "transport_unavailable", message)
 
 
-def preview_unavailable_result(query: object, message: str) -> SongPreviewResult:
-    """Build an unavailable preview result before service construction."""
-    return preview_error(_safe_query(query), "transport_unavailable", message)
-
-
 def random_song_error(
     error_type: str,
     message: str,
@@ -265,16 +200,6 @@ def random_song_error(
     )
     _set_random_filter(result, random_filter)
     return result
-
-
-def preview_error(query: str, error_type: str, message: str) -> SongPreviewResult:
-    """Build a safe preview failure result."""
-    return SongPreviewResult(
-        query=query,
-        raw_text="",
-        ok=False,
-        error=BridgeError(error_type=error_type, message=message),
-    )
 
 
 def _set_random_filter(

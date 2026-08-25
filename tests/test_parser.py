@@ -6,7 +6,6 @@ from typing import Any
 
 from yurisaki_bridge.parser import (
     extract_message_content,
-    parse_preview_response,
     parse_random_song_response,
     parse_song_info_response,
 )
@@ -321,56 +320,3 @@ def test_rand_unknown_extra_segments_and_fields_are_tolerated() -> None:
     assert result.ok is True
     assert result.canonical_title == "Test"
     assert result.extra_fields == {"未来字段": "值"}
-
-
-def test_preview_parser_accepts_text_then_record_without_exposing_reference() -> None:
-    events = json.loads(
-        (FIXTURES / "yurisaki_preview_response.json").read_text(encoding="utf-8")
-    )
-    result = parse_preview_response(
-        "synthesis",
-        events,
-    )
-    serialized = json.dumps(result.to_dict(), ensure_ascii=False)
-
-    assert result.ok is True
-    assert result.canonical_title == "Synthesis."
-    assert result.to_dict()["audio_count"] == 1
-    assert "synthetic-preview-file" not in serialized
-    assert "synthetic-preview-path.wav" not in serialized
-    assert "synthetic-preview.wav" not in serialized
-
-
-def test_preview_parser_accepts_record_then_text_and_unknown_segments() -> None:
-    result = parse_preview_response(
-        "test",
-        [
-            [
-                {"type": "unknown", "data": {"large": "x" * 10_000}},
-                {"type": "record", "data": {"file": "audio-id"}},
-            ],
-            [_text_segment("曲目: Test Song")],
-        ],
-    )
-
-    assert result.ok is True
-    assert result.canonical_title == "Test Song"
-    assert result.raw_text == "曲目: Test Song"
-
-
-def test_preview_parser_rejects_missing_or_unexpected_parts() -> None:
-    missing_audio = parse_preview_response("test", [[_text_segment("曲目：Test")]])
-    invalid_text = parse_preview_response(
-        "test",
-        [
-            [_text_segment("服务繁忙")],
-            [{"type": "record", "data": {"url": "https://example.invalid/a"}}],
-        ],
-    )
-
-    assert missing_audio.ok is False
-    assert missing_audio.error is not None
-    assert missing_audio.error.error_type == "incomplete_response"
-    assert invalid_text.ok is False
-    assert invalid_text.error is not None
-    assert invalid_text.error.error_type == "invalid_response"

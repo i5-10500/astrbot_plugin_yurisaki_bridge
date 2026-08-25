@@ -6,14 +6,7 @@
 import re
 from collections.abc import Mapping, Sequence
 
-from .models import (
-    AudioReference,
-    BridgeError,
-    ImageReference,
-    RandomSongResult,
-    SongInfoResult,
-    SongPreviewResult,
-)
+from .models import BridgeError, ImageReference, RandomSongResult, SongInfoResult
 
 _FIELD_LINE = re.compile(
     r"^\s*(?:[-•·]\s*)?(?P<label>[^:：\r\n]{1,32})\s*[:：]\s*(?P<value>.*)\s*$"
@@ -53,7 +46,6 @@ _RAND_ERROR_MESSAGES = {
         "Yurisaki found no song matching the requested filter.",
     ),
 }
-_PREVIEW_TITLE = re.compile(r"^\s*曲目\s*[:：]\s*(?P<title>[^\r\n]+?)\s*$")
 
 
 def extract_message_content(
@@ -152,53 +144,6 @@ def parse_random_song_response(segments: Sequence[object]) -> RandomSongResult:
             message="Yurisaki random-song response contained no image.",
         )
 
-    return result
-
-
-def parse_preview_response(
-    query: str,
-    events: Sequence[Sequence[object]],
-) -> SongPreviewResult:
-    """Parse the observed text-event then record-event preview response."""
-    text_parts: list[str] = []
-    audio: list[AudioReference] = []
-    for segments in events:
-        for segment in segments:
-            if not isinstance(segment, Mapping):
-                continue
-            segment_type = segment.get("type")
-            raw_data = segment.get("data")
-            data = raw_data if isinstance(raw_data, Mapping) else segment
-            if segment_type == "text":
-                text = data.get("text")
-                if isinstance(text, str):
-                    text_parts.append(text)
-            elif segment_type == "record":
-                reference = AudioReference(
-                    file=_optional_string(data.get("file")),
-                    url=_optional_string(data.get("url")),
-                    path=_optional_string(data.get("path")),
-                )
-                if any((reference.file, reference.url, reference.path)):
-                    audio.append(reference)
-
-    raw_text = "".join(text_parts)
-    result = SongPreviewResult(query=query, raw_text=raw_text, audio=audio)
-    title_match = _PREVIEW_TITLE.fullmatch(raw_text)
-    if title_match is None:
-        result.ok = False
-        result.error = BridgeError(
-            error_type="invalid_response",
-            message="Yurisaki preview response had an invalid title response.",
-        )
-    elif not audio:
-        result.ok = False
-        result.error = BridgeError(
-            error_type="incomplete_response",
-            message="Yurisaki preview response contained no audio.",
-        )
-    else:
-        result.canonical_title = title_match.group("title")
     return result
 
 

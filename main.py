@@ -5,26 +5,20 @@
 
 import asyncio
 import json
-import string
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlsplit
 
-import astrbot.api.message_components as Comp
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 
 from .yurisaki_bridge import __version__
-from .yurisaki_bridge.models import RandomSongResult, SongPreviewResult
+from .yurisaki_bridge.models import RandomSongResult
 from .yurisaki_bridge.service import (
-    QueryValidationError,
     RandomFilterValidationError,
     YurisakiService,
-    normalize_query,
     normalize_random_filter,
-    preview_error,
-    preview_unavailable_result,
     random_song_error,
     unavailable_payload,
 )
@@ -32,7 +26,6 @@ from .yurisaki_bridge.transport import TransportConfig, YurisakiTransport
 
 _PLATFORM_NAME = "aiocqhttp"
 _RANDOM_TOOL_EVENT_KEY = "yurisaki_bridge.random_song_called"
-_PREVIEW_TOOL_EVENT_KEY = "yurisaki_bridge.song_preview_called"
 
 
 class YurisakiBridgePlugin(Star):
@@ -142,66 +135,6 @@ class YurisakiBridgePlugin(Star):
             await self._deliver_random_image(event, result)
         return json.dumps(result.to_dict(), ensure_ascii=False)
 
-    @filter.llm_tool(name="yurisaki_song_preview")
-    async def yurisaki_song_preview(
-        self,
-        event: AstrMessageEvent,
-        query: str,
-    ) -> str:
-        """仅在用户明确要求试听时发送 Arcaea 游戏内短预览音频。
-
-        Args:
-            query(string): 用户明确要求试听的曲名、别名或曲目 ID，长度不超过
-                120 个字符；普通资料查询或仅提到曲名时不要调用
-        """
-        try:
-            normalized_query = normalize_query(query)
-        except QueryValidationError:
-            result = preview_error(
-                query.strip()[:120] if isinstance(query, str) else "",
-                "invalid_query",
-                "Query must be 1-120 characters and contain no control characters.",
-            )
-            return json.dumps(result.to_dict(), ensure_ascii=False)
-
-        if not self.config.get("enabled", True):
-            result = preview_unavailable_result(
-                normalized_query,
-                "Yurisaki Bridge is disabled.",
-            )
-            return json.dumps(result.to_dict(), ensure_ascii=False)
-        if not self.config.get("enable_preview_tool", False):
-            result = preview_error(
-                normalized_query,
-                "preview_disabled",
-                "The preview Tool is disabled by configuration.",
-            )
-            return json.dumps(result.to_dict(), ensure_ascii=False)
-
-        if event.get_extra(_PREVIEW_TOOL_EVENT_KEY):
-            result = preview_error(
-                normalized_query,
-                "duplicate_tool_call",
-                "The preview Tool was already called for this user request.",
-            )
-            return json.dumps(result.to_dict(), ensure_ascii=False)
-        event.set_extra(_PREVIEW_TOOL_EVENT_KEY, True)
-
-        try:
-            service = await self._ensure_service()
-        except Exception:
-            logger.warning("Unable to initialize Yurisaki transport", exc_info=True)
-            result = preview_unavailable_result(
-                query,
-                "No connected aiocqhttp platform is available.",
-            )
-            return json.dumps(result.to_dict(), ensure_ascii=False)
-
-        result = await service.song_preview(normalized_query)
-        if result.ok:
-            await self._deliver_preview_audio(event, result)
-        return json.dumps(result.to_dict(), ensure_ascii=False)
-
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP, priority=1000)
     @filter.event_message_type(filter.EventMessageType.PRIVATE_MESSAGE, priority=1000)
     async def intercept_yurisaki_response(self, event: AstrMessageEvent) -> None:
@@ -245,70 +178,6 @@ class YurisakiBridgePlugin(Star):
             logger.warning("Unable to deliver the Yurisaki random-song image")
             return
         result.image_delivered = True
-
-    async def _deliver_preview_audio(
-        self,
-        event: AstrMessageEvent,
-        result: SongPreviewResult,
-    ) -> None:
-        if await self._send_preview_record_reference(event, result):
-            result.audio_delivered = True
-            return
-
-        audio_source = next(
-            (
-                safe_url
-                for audio in result.audio
-                if (safe_url := _safe_media_url(audio.url))
-            ),
-            None,
-        )
-        if audio_source is None:
-            return
-        try:
-            record = Comp.Record(file=audio_source, url=audio_source)
-            await event.send(event.chain_result([record]))
-        except Exception:
-            logger.warning("Unable to deliver the Yurisaki preview audio")
-            return
-        result.audio_delivered = True
-
-    async def _send_preview_record_reference(
-        self,
-        event: AstrMessageEvent,
-        result: SongPreviewResult,
-    ) -> bool:
-        """Reuse NapCat's captured record reference before the HTTPS fallback."""
-        transport = self._transport
-        file_reference = next(
-            (
-                safe_reference
-                for audio in result.audio
-                if (safe_reference := _safe_napcat_file_reference(audio.file))
-                is not None
-            ),
-            None,
-        )
-        if transport is None or file_reference is None:
-            return False
-
-        group_id = _decimal_id(event.get_group_id())
-        user_id = None if group_id is not None else _decimal_id(event.get_sender_id())
-        if group_id is None and user_id is None:
-            return False
-
-        try:
-            await transport.send_preview_record(
-                file_reference,
-                user_id=user_id,
-                group_id=group_id,
-            )
-        except Exception:
-            logger.warning(
-                "Preview record-reference delivery unavailable; falling back to Record"
-            )
-            return False
-        return True
 
     async def _ensure_service(self) -> YurisakiService:
         if self._terminated:
@@ -376,27 +245,7 @@ def _login_user_id(login_info: object) -> str:
     return str(user_id)
 
 
-def _decimal_id(value: object) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, (int, str)) and str(value).isdecimal():
-        return int(value)
-    return None
-
-
 def _safe_image_url(value: str | None) -> str | None:
-    return _safe_media_url(value)
-
-
-def _safe_napcat_file_reference(value: str | None) -> str | None:
-    if not isinstance(value, str) or len(value) != 32:
-        return None
-    if any(character not in string.hexdigits for character in value):
-        return None
-    return value
-
-
-def _safe_media_url(value: str | None) -> str | None:
     if not isinstance(value, str):
         return None
     parsed = urlsplit(value)
