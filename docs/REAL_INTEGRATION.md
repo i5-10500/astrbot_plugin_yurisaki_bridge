@@ -108,6 +108,17 @@ v0.2.1 不新增业务命令，也没有重新测试已放弃的 preview 音频�
 回复、临时媒体值泄漏或正常 CDN 被误伤。维护者随后授权创建 v0.2.1 Tag 与 GitHub
 Release。
 
+## v0.2.1 Release 资产复验（2026-08-25）
+
+annotated `v0.2.1` tag 指向发布最终化合并提交 `2a834c0`。正式资产从该 tag 重新构建，
+没有复用实机 smoke-test 包；ZIP 根目录和版本号通过检查，不包含 `.github`、tests、AGENTS、
+开发依赖、缓存或其他 ZIP。
+
+公开 Release 资产 `astrbot_plugin_yurisaki_bridge-0.2.1.zip` 大小为 43,802 字节，
+SHA-256 为 `529133C18177F66BB81EBF457DD065372AC6DBB67A868A12006A58B7BB34D4AF`。
+GitHub 记录的 digest、本地 tag 构建结果和未带认证头的公开下载三者一致；Release 不是
+Draft 或 Prerelease。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：
