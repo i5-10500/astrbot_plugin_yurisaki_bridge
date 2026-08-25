@@ -6,8 +6,8 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 
 ## 当前状态
 
-当前稳定版本为 v0.2.0。随机曲目、可选标级/定数筛选、原会话封面交付及错误处理均已
-完成离线检查、针对性实机回归和公开发布。详细边界见
+当前开发版本为 v0.3.0；v0.2.0 是最近的稳定 Release。曲目信息和随机曲目已经完成
+实机回归；短预览音频已完成离线实现，正等待独立实机验收。详细边界见
 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
 
 当前支持：
@@ -17,10 +17,13 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 - AstrBot Agent Tool `yurisaki_song_info(query)`。
 - Yurisaki 私聊 `/a rand [标级或定数]` 与 Agent Tool
   `yurisaki_random_song(difficulty="")`。
+- Yurisaki 私聊 `/a preview <曲目>` 与 Agent Tool
+  `yurisaki_song_preview(query)`，把短预览音频发送到原会话。
 - 曲名、别名或曲目 ID 查询，以及结构化结果和安全错误模型。
 
 随机 Tool 支持无条件随机，也支持 Yurisaki 已定义的标级或谱面定数筛选；不支持曲包、
-成绩或任意文本过滤。暂不支持 `/a chart`、其他 Yurisaki 命令或其他平台适配器。
+成绩或任意文本过滤。试听仅桥接 Yurisaki 提供的 Arcaea 游戏内短预览，不提供完整歌曲、
+下载或音频分析。暂不支持 `/a chart`、其他 Yurisaki 命令或其他平台适配器。
 
 ## 前置条件
 
@@ -40,7 +43,7 @@ https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 也可以克隆仓库后，从最新 `main` 生成本地安装包：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.3.0.zip main
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -52,6 +55,7 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
 ## 配置
 
 - `enabled`：是否启用插件，默认启用。
+- `enable_preview_tool`：是否允许曲目试听，默认关闭；开启后才会请求和发送预览音频。
 - `yurisaki_user_id`：目标 Yurisaki QQ 号，默认 `3889054356`。
 - `platform_id`：只有一个 aiocqhttp 平台时留空；多个平台时填写目标平台 ID。
 - `timeout_seconds`：等待私聊响应的最长时间，默认 15 秒。
@@ -69,6 +73,7 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
 ```text
 yurisaki_song_info(query)
 yurisaki_random_song(difficulty="")
+yurisaki_song_preview(query)
 ```
 
 Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度、换行和命令注入校验后，
@@ -91,6 +96,12 @@ Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度
 物量、谱师字段按上游原文保留。Yurisaki 的已知纯文本错误会分别返回 `invalid_filter` 或
 `no_matching_song`，不会被当成成功结果或触发图片发送。
 
+`yurisaki_song_preview(query)` 仅应在用户明确要求试听或播放短预览时调用；普通资料查询、
+仅提到曲名或需要 LLM 分析音频时不得调用。同一轮用户请求最多执行一次。插件只生成
+`/a preview <经校验的 query>`，等待曲名文本和独立语音事件都到齐后，立即把 HTTPS
+音频引用作为 `Record` 消息发送到原 Tool 会话。临时 URL、file 和 path 不进入 Tool JSON
+或日志；只收到文本或音频时返回 `incomplete_response`，不会把部分结果当成成功。
+
 ## 工作原理
 
 ```text
@@ -99,7 +110,8 @@ Agent -> Tool -> QQ private -> Yurisaki -> Parser -> Tool Result -> Agent
 
 入口层负责 AstrBot Tool、配置、响应拦截和生命周期；Service 负责输入校验与业务编排；
 Transport 负责 OneBot 私聊、超时、限速和回调；Parser 将文本与 OneBot segments 转换为
-结构化结果。`/a info` 和 `/a rand` 共享同一个 single-flight 与超时隔离状态。
+结构化结果。`/a info`、`/a rand` 和 `/a preview` 共享同一个 single-flight 与超时隔离
+状态；preview 使用最多四个候选事件的有限收集器，以文本与语音同时出现为完成条件。
 
 Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 single-flight，同一时间只
 允许一个在途查询。这会牺牲并发吞吐量，但可以避免不同用户的响应串台。查询超时后还会
@@ -119,6 +131,8 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 - **出现重复响应**：禁用 Probe 或其他监听同一 Yurisaki 私聊的插件，然后重载本插件。
 - **随机曲目有文字但没有封面**：确认 NapCat 能访问 Yurisaki 图片 URL；插件仍会保留
   结构化文字结果，并把 `image_delivered` 标记为 `false`。
+- **试听返回但没有语音**：确认 `enable_preview_tool=true`，并确认 NapCat 能直接发送
+  Yurisaki 返回的 HTTPS 语音 URL；当前实现不下载、不缓存，也不调用 ffmpeg 转码。
 - **重连后仍不可用**：确认 AstrBot 已重新收到 aiocqhttp 平台连接，再发起一个新查询。
 
 报告问题时请提供 AstrBot/NapCat 版本、脱敏错误行和 OneBot segment 类型，不要上传完整
@@ -128,8 +142,13 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 
 插件不会主动收集普通群友聊天正文。原始事件监听器只接受目标 Yurisaki 账号、当前机器人
 账号和当前请求时间窗口同时匹配的私聊响应；超时隔离期内来自目标账号的迟到响应只会被
-丢弃和拦截。响应正文只用于完成本次 Tool 调用。随机曲目图片 URL 只用于即时发送，不写入
-日志或 Tool JSON，也不由插件下载或持久化。默认日志只记录必要元数据，不记录私聊正文。
+丢弃和拦截。响应正文只用于完成本次 Tool 调用。随机曲目图片和试听音频 URL 只用于即时
+发送，不写入日志或 Tool JSON，也不由插件下载或持久化。默认日志只记录必要元数据，不
+记录私聊正文。
+
+本插件不是成绩系统、定数数据库、谱面图片分析器、猜歌会话、完整音乐服务、音乐下载器或
+任意 Yurisaki 命令代理。预览音频的权利归相应权利人所有；本插件仅转发上游提供的短预览，
+使用者仍应遵守 Yurisaki、Arcaea、平台及所在地适用规则。
 
 更多报告要求见 [`SECURITY.md`](SECURITY.md)。
 

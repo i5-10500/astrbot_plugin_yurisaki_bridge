@@ -5,6 +5,21 @@
 
 ## Unreleased
 
+### Added
+
+- 新增 Agent Tool `yurisaki_song_preview(query)`；只生成固定 `/a preview` 命令，并复用
+  info/rand 的输入校验、全局 single-flight、限速、响应拦截和超时隔离。
+- 根据三次真实脱敏探测增加有限多事件 collector：曲名文本与 `record` 都到齐才完成，支持
+  text/audio 任意顺序和单事件组合，部分响应超时返回 `incomplete_response`。
+- 通过 AstrBot `Record` 消息链把 HTTPS 短预览发送到原 Tool 会话；临时 URL、file 和
+  path 不进入 Tool JSON 或日志，也不下载、缓存或预先调用 ffmpeg。
+- 新增 `enable_preview_tool` 配置和同一 Agent 事件防重复调用保护。
+
+### Fixed
+
+- transport 同时兼容 Python 3.10 的 `asyncio.TimeoutError` 和新版 Python 的内置
+  `TimeoutError`，避免正常超时被误报为未知错误。
+
 ## 0.2.0 - 2026-08-25
 
 ### Added

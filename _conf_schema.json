@@ -4,6 +4,12 @@
     "type": "bool",
     "default": true
   },
+  "enable_preview_tool": {
+    "description": "启用曲目试听 Tool",
+    "type": "bool",
+    "default": false,
+    "hint": "仅应在用户明确要求试听时调用；关闭后不会向 Yurisaki 请求或发送预览音频。"
+  },
   "yurisaki_user_id": {
     "description": "Yurisaki QQ 号",
     "type": "string",

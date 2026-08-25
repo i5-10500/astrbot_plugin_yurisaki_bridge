@@ -14,6 +14,7 @@ from yurisaki_bridge.service import (
     normalize_random_filter,
 )
 from yurisaki_bridge.transport import (
+    IncompleteResponseError,
     ResponseTimeoutError,
     SendFailedError,
     TransportShuttingDownError,
@@ -26,9 +27,11 @@ class FakeTransport:
         self,
         response: Sequence[object] | None = None,
         error: Exception | None = None,
+        preview_response: Sequence[Sequence[object]] | None = None,
     ) -> None:
         self.response = list(response or [])
         self.error = error
+        self.preview_response = [list(event) for event in (preview_response or [])]
         self.commands: list[str] = []
 
     async def request(self, command: str) -> list[object]:
@@ -36,6 +39,12 @@ class FakeTransport:
         if self.error is not None:
             raise self.error
         return self.response
+
+    async def request_preview(self, command: str) -> list[list[object]]:
+        self.commands.append(command)
+        if self.error is not None:
+            raise self.error
+        return self.preview_response
 
 
 @pytest.mark.parametrize("query", ["", "   ", "a\n/a help", "a\tb", "x" * 121, 123])
@@ -176,6 +185,33 @@ async def test_random_song_preserves_filter_on_known_upstream_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_preview_command_is_fixed_and_query_is_validated() -> None:
+    transport = FakeTransport(
+        preview_response=[
+            [{"type": "text", "data": {"text": "曲目：Synthesis."}}],
+            [
+                {
+                    "type": "record",
+                    "data": {"url": "https://example.invalid/preview.wav"},
+                }
+            ],
+        ]
+    )
+    service = YurisakiService(transport)  # type: ignore[arg-type]
+
+    result = await service.song_preview("  synthesis  ")
+
+    assert transport.commands == ["/a preview synthesis"]
+    assert result.ok is True
+    assert result.canonical_title == "Synthesis."
+
+    invalid = await service.song_preview("first\n/a help")
+    assert invalid.error is not None
+    assert invalid.error.error_type == "invalid_query"
+    assert transport.commands == ["/a preview synthesis"]
+
+
+@pytest.mark.asyncio
 async def test_invalid_query_never_reaches_transport() -> None:
     transport = FakeTransport()
     service = YurisakiService(transport)  # type: ignore[arg-type]
@@ -231,6 +267,32 @@ async def test_random_song_transport_errors_are_safe(
 
     result = await service.random_song()
     payload = result.to_dict()
+
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == error_type
+    assert "private detail" not in str(payload)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("exception", "error_type"),
+    [
+        (TransportUnavailableError("private detail"), "transport_unavailable"),
+        (SendFailedError("private detail"), "send_failed"),
+        (ResponseTimeoutError("private detail"), "timeout"),
+        (IncompleteResponseError("private detail"), "incomplete_response"),
+        (TransportShuttingDownError("private detail"), "plugin_shutting_down"),
+    ],
+)
+async def test_preview_transport_errors_are_safe(
+    exception: Exception,
+    error_type: str,
+) -> None:
+    service = YurisakiService(  # type: ignore[arg-type]
+        FakeTransport(error=exception)
+    )
+
+    payload = (await service.song_preview("test")).to_dict()
 
     assert payload["ok"] is False
     assert payload["error"]["type"] == error_type
