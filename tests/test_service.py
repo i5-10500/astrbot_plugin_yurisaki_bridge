@@ -7,8 +7,11 @@ import pytest
 import yurisaki_bridge.service as service_module
 from yurisaki_bridge.service import (
     QueryValidationError,
+    RandomFilterValidationError,
+    RandomSongFilter,
     YurisakiService,
     normalize_query,
+    normalize_random_filter,
 )
 from yurisaki_bridge.transport import (
     ResponseTimeoutError,
@@ -79,6 +82,97 @@ async def test_random_song_command_is_fixed() -> None:
     assert result.ok is True
     assert result.canonical_title == "Random Song"
     assert result.artist == "Test Artist"
+
+
+@pytest.mark.parametrize(
+    ("value", "filter_type"),
+    [
+        ("1", "level"),
+        ("8+", "level"),
+        ("12", "level"),
+        ("1.0", "constant"),
+        ("7.5", "constant"),
+        ("8.0", "constant"),
+        ("10.7", "constant"),
+        ("12.0", "constant"),
+    ],
+)
+def test_random_song_filter_whitelist(value: str, filter_type: str) -> None:
+    random_filter = normalize_random_filter(f"  {value}  ")
+
+    assert random_filter is not None
+    assert random_filter.value == value
+    assert random_filter.filter_type == filter_type
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["0", "7+", "12+", "1.1", "7.6", "8.01", "12.1", "10.70", "/a info", 10.7],
+)
+def test_invalid_random_song_filter_is_rejected(value: object) -> None:
+    with pytest.raises(RandomFilterValidationError):
+        normalize_random_filter(value)
+
+
+@pytest.mark.parametrize(
+    ("filter_type", "value"),
+    [("level", "10.7"), ("constant", "10+"), ("unknown", "10")],
+)
+def test_random_song_filter_type_cannot_bypass_whitelist(
+    filter_type: str,
+    value: str,
+) -> None:
+    with pytest.raises(RandomFilterValidationError):
+        RandomSongFilter(filter_type=filter_type, value=value)
+
+
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_empty_random_song_filter_means_unfiltered(value: object) -> None:
+    assert normalize_random_filter(value) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("value", "expected_type"),
+    [("8+", "level"), ("10.7", "constant")],
+)
+async def test_random_song_builds_only_whitelisted_filtered_command(
+    value: str,
+    expected_type: str,
+) -> None:
+    transport = FakeTransport(
+        [
+            {"type": "image", "data": {"url": "https://example.invalid/image"}},
+            {
+                "type": "text",
+                "data": {"text": "曲目: Random Song [FTR]\n难度: 10.7"},
+            },
+        ]
+    )
+    service = YurisakiService(transport)  # type: ignore[arg-type]
+
+    result = await service.random_song(normalize_random_filter(value))
+    payload = result.to_dict()
+
+    assert transport.commands == [f"/a rand {value}"]
+    assert payload["filter"] == {"type": expected_type, "value": value}
+    assert payload["canonical_title"] == "Random Song [FTR]"
+    assert payload["difficulties"] == ["10.7"]
+
+
+@pytest.mark.asyncio
+async def test_random_song_preserves_filter_on_known_upstream_error() -> None:
+    transport = FakeTransport(
+        [{"type": "text", "data": {"text": "没有找到符合条件的曲目。"}}]
+    )
+    service = YurisakiService(transport)  # type: ignore[arg-type]
+
+    payload = (await service.random_song(normalize_random_filter("11+"))).to_dict()
+
+    assert payload["ok"] is False
+    assert payload["filter"] == {"type": "level", "value": "11+"}
+    assert payload["error"]["type"] == "no_matching_song"
+    assert payload["image_count"] == 0
 
 
 @pytest.mark.asyncio

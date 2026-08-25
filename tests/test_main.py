@@ -274,7 +274,7 @@ async def test_random_song_tool_sends_image_to_original_event(
     caller_event = FakeEvent({})
     other_event = FakeEvent({})
 
-    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event))
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event, ""))
     await asyncio.wait_for(client.sent.wait(), timeout=0.2)
     raw_response = _raw_rand_response()
     await client.emit(raw_response)
@@ -299,10 +299,76 @@ async def test_random_song_tool_sends_image_to_original_event(
     assert "private-file" not in serialized
     assert intercept_event.stopped is True
 
-    duplicate = json.loads(await plugin.yurisaki_random_song(caller_event))
+    duplicate = json.loads(await plugin.yurisaki_random_song(caller_event, ""))
     assert duplicate["error"]["type"] == "duplicate_tool_call"
     assert len(client.calls) == 2
     assert len(caller_event.sent_results) == 1
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_random_song_tool_sends_whitelisted_filter(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event, "10.7"))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_rand_response())
+    payload = json.loads(await task)
+
+    assert client.calls[1] == (
+        "send_private_msg",
+        {"user_id": int(YURISAKI_ID), "message": "/a rand 10.7"},
+    )
+    assert payload["filter"] == {"type": "constant", "value": "10.7"}
+    assert payload["image_delivered"] is True
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_invalid_random_song_filter_never_reaches_transport_or_guard(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+
+    invalid = json.loads(await plugin.yurisaki_random_song(caller_event, "10.70"))
+
+    assert invalid["error"]["type"] == "invalid_filter"
+    assert len(client.calls) == 1
+    assert caller_event.extras == {}
+
+    task = asyncio.create_task(plugin.yurisaki_random_song(caller_event, "8+"))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_rand_response())
+    valid = json.loads(await task)
+
+    assert client.calls[1][1]["message"] == "/a rand 8+"
+    assert valid["ok"] is True
 
     await plugin.terminate()
 

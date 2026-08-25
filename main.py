@@ -16,7 +16,9 @@ from astrbot.api.star import Context, Star
 from .yurisaki_bridge import __version__
 from .yurisaki_bridge.models import RandomSongResult
 from .yurisaki_bridge.service import (
+    RandomFilterValidationError,
     YurisakiService,
+    normalize_random_filter,
     random_song_error,
     unavailable_payload,
 )
@@ -81,12 +83,32 @@ class YurisakiBridgePlugin(Star):
         return json.dumps(payload, ensure_ascii=False)
 
     @filter.llm_tool(name="yurisaki_random_song")
-    async def yurisaki_random_song(self, event: AstrMessageEvent) -> str:
-        """随机推荐一首 Arcaea 曲目并发送封面；不支持筛选，每轮最多调用一次。"""
+    async def yurisaki_random_song(
+        self,
+        event: AstrMessageEvent,
+        difficulty: str = "",
+    ) -> str:
+        """随机推荐一首 Arcaea 曲目并发送封面；可按标级或定数筛选。
+
+        Args:
+            difficulty(string): 可选筛选值；标级支持 1-12 及
+                8+/9+/10+/11+，定数支持 1.0-7.5（步长 0.5）及
+                8.0-12.0（步长 0.1）；无筛选时留空
+        """
+        try:
+            random_filter = normalize_random_filter(difficulty)
+        except RandomFilterValidationError:
+            result = random_song_error(
+                "invalid_filter",
+                "Use a supported level or chart-constant filter, or leave it empty.",
+            )
+            return json.dumps(result.to_dict(), ensure_ascii=False)
+
         if not self.config.get("enabled", True):
             result = random_song_error(
                 "transport_unavailable",
                 "Yurisaki Bridge is disabled.",
+                random_filter,
             )
             return json.dumps(result.to_dict(), ensure_ascii=False)
 
@@ -108,7 +130,7 @@ class YurisakiBridgePlugin(Star):
             )
             return json.dumps(result.to_dict(), ensure_ascii=False)
 
-        result = await service.random_song()
+        result = await service.random_song(random_filter)
         if result.ok:
             await self._deliver_random_image(event, result)
         return json.dumps(result.to_dict(), ensure_ascii=False)
