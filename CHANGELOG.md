@@ -5,6 +5,22 @@
 
 ## Unreleased
 
+## 0.2.1 - 2026-08-25
+
+### Changed
+
+- 同步 README、SECURITY、CONTRIBUTING 与维护交接中的当前双 Tool 功能和受控命令边界。
+- 修正版本化 ZIP 的构建示例，要求从同版本 Git tag 而非浮动的 `main` 构建。
+- `/a info` 的 Agent-facing payload 改为只报告 `image_count`，不再暴露临时图片 URL 或
+  file 标识；parser 内部图片引用保持不变。
+- 明确曲目 preview 音频和其他 Yurisaki 命令不在当前产品范围内，并将项目定位为正常
+  维护中的 feature-complete 状态。
+
+### Security
+
+- 随机曲绘发送前拒绝 localhost，以及 IP literal 形式的私有、回环、link-local 和
+  unspecified 地址，不增加 DNS 解析或第三方网络依赖。
+
 ## 0.2.0 - 2026-08-25
 
 ### Added

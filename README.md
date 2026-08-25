@@ -1,13 +1,14 @@
 # Yurisaki Bridge for AstrBot
 
 Yurisaki Bridge 是一个非官方第三方 AstrBot 插件，将 Yurisaki 的 Arcaea
-曲目信息查询能力桥接为 AstrBot Agent Tool。本项目不代表 Yurisaki、AstrBot、
+曲目信息查询与随机曲目能力桥接为 AstrBot Agent Tool。本项目不代表 Yurisaki、AstrBot、
 Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务的规则。
 
 ## 当前状态
 
-当前稳定版本为 v0.2.0。随机曲目、可选标级/定数筛选、原会话封面交付及错误处理均已
-完成离线检查、针对性实机回归和公开发布。详细边界见
+当前代码版本为 v0.2.1（发布前维护阶段），最新公开 Release 为 v0.2.0。随机曲目、可选
+标级/定数筛选、原会话封面交付及错误处理均已完成离线检查、针对性实机回归和公开发布。
+详细边界见
 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
 
 当前支持：
@@ -17,10 +18,19 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 - AstrBot Agent Tool `yurisaki_song_info(query)`。
 - Yurisaki 私聊 `/a rand [标级或定数]` 与 Agent Tool
   `yurisaki_random_song(difficulty="")`。
-- 曲名、别名或曲目 ID 查询，以及结构化结果和安全错误模型。
+- 曲名、别名或曲目 ID 查询、随机曲绘回传，以及结构化结果和安全错误模型。
 
 随机 Tool 支持无条件随机，也支持 Yurisaki 已定义的标级或谱面定数筛选；不支持曲包、
-成绩或任意文本过滤。暂不支持 `/a chart`、其他 Yurisaki 命令或其他平台适配器。
+成绩或任意文本过滤。
+
+当前产品边界不包括：
+
+- 玩家成绩或账号查询。
+- 成绩图识别、谱面图片分析或 Rating 图片识别。
+- `/a calc`、`/a calcls`、猜歌会话或其他 Yurisaki 命令代理。
+- 曲目 preview 音频。该方向曾进行评估，但转发链路会产生明显二次压缩，当前不计划支持。
+- 任意 Yurisaki 命令、QQ 目标、OneBot API 或 raw payload 代理。
+- aiocqhttp / NapCat 以外的平台适配器。
 
 ## 前置条件
 
@@ -37,10 +47,11 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 ```
 
-也可以克隆仓库后，从最新 `main` 生成本地安装包：
+普通用户应优先从 [GitHub Releases](https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge/releases)
+下载正式资产。维护者需要从本地重建特定版本时，文件名和 tag 必须使用相同版本，例如：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.1.zip v0.2.1
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -71,14 +82,15 @@ yurisaki_song_info(query)
 yurisaki_random_song(difficulty="")
 ```
 
-Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度、换行和命令注入校验后，
-插件只会生成：
+Agent 可以在回答 Arcaea 曲目信息或随机推荐问题时调用它们。输入经过长度、换行、控制
+字符和严格白名单校验后，插件只会生成：
 
 ```text
 /a info <经校验的 query>
+/a rand [经校验的 difficulty]
 ```
 
-插件不提供任意 QQ 消息或 Yurisaki 命令执行入口。
+Agent 不能控制目标 QQ、OneBot API 名称、任意 `/a` 子命令或 raw payload。
 
 `yurisaki_random_song(difficulty="")` 每轮用户请求最多执行一次。`difficulty` 留空时发送
 `/a rand`；标级只接受 `1`–`12` 与 `8+`、`9+`、`10+`、`11+`，定数只接受
@@ -86,7 +98,7 @@ Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度
 `8.0` 是定数。插件只会把白名单值附加到 `/a rand`，其他值返回 `invalid_filter` 且不会
 发送 QQ 命令。
 
-成功时，插件会即时把 Yurisaki 封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent
+随机查询成功时，插件会即时把 Yurisaki 封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent
 返回不含临时 URL/file 值的结构化歌曲信息。过滤响应中的曲名 `[...]` 后缀与单个难度、
 物量、谱师字段按上游原文保留。Yurisaki 的已知纯文本错误会分别返回 `invalid_filter` 或
 `no_matching_song`，不会被当成成功结果或触发图片发送。
@@ -128,8 +140,10 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 
 插件不会主动收集普通群友聊天正文。原始事件监听器只接受目标 Yurisaki 账号、当前机器人
 账号和当前请求时间窗口同时匹配的私聊响应；超时隔离期内来自目标账号的迟到响应只会被
-丢弃和拦截。响应正文只用于完成本次 Tool 调用。随机曲目图片 URL 只用于即时发送，不写入
-日志或 Tool JSON，也不由插件下载或持久化。默认日志只记录必要元数据，不记录私聊正文。
+丢弃和拦截。响应正文只用于完成本次 Tool 调用。`/a info` 的 Tool Result 只报告图片数量，
+不向 Agent/LLM 暴露图片 URL 或 file 标识。随机曲目图片 URL 只用于即时发送，并拒绝明显的
+localhost、私有、回环和 link-local IP 目标；URL 不写入日志或 Tool JSON，也不由插件下载
+或持久化。默认日志只记录必要元数据，不记录私聊正文。
 
 更多报告要求见 [`SECURITY.md`](SECURITY.md)。
 
@@ -147,6 +161,12 @@ python -m pytest
 离线测试不会连接真实 QQ 或 Yurisaki。贡献流程见
 [`CONTRIBUTING.md`](CONTRIBUTING.md)，版本记录见 [`CHANGELOG.md`](CHANGELOG.md)，
 维护者发布流程见 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)。
+
+## 维护状态
+
+当前规划的功能范围已经完成，项目仍会正常维护，但没有继续接入其他 Yurisaki 命令的计划。
+后续版本主要处理 Yurisaki 协议兼容、AstrBot/NapCat 兼容、可靠性、parser 韧性和已复现
+缺陷。
 
 ## 开发声明
 
