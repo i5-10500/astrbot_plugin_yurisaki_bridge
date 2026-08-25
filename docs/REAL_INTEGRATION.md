@@ -81,6 +81,17 @@
 精确分类继续由离线回归测试覆盖；实机过程中若自然遇到 `no_matching_song`，仍应保留
 对应 Tool JSON 供复核。
 
+## v0.2.0 Release 资产复验（2026-08-25）
+
+annotated `v0.2.0` tag 指向发布最终化合并提交 `6a68467`。正式资产从该 tag 重新构建，
+没有复用本地验收包；ZIP 根目录、版本号及导出排除规则均通过检查，不包含 `.github`、
+tests、AGENTS、开发依赖、Probe、缓存或其他 ZIP。
+
+公开 Release 资产 `astrbot_plugin_yurisaki_bridge-0.2.0.zip` 大小为 41,307 字节，
+SHA-256 为 `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`。
+GitHub 记录的 digest、本地 tag 构建结果及未带认证头的公开下载三者一致；Release 不是
+Draft 或 Prerelease。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：
