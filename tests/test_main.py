@@ -61,22 +61,31 @@ class FakeStar:
         self.context = context
 
 
+class FakeRecord:
+    def __init__(self, *, file: str, url: str) -> None:
+        self.file = file
+        self.url = url
+
+
 @pytest.fixture
 def plugin_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     astrbot = ModuleType("astrbot")
     api = ModuleType("astrbot.api")
     event_api = ModuleType("astrbot.api.event")
+    components_api = ModuleType("astrbot.api.message_components")
     star_api = ModuleType("astrbot.api.star")
     api.AstrBotConfig = dict  # type: ignore[attr-defined]
     api.logger = FakeLogger()  # type: ignore[attr-defined]
     event_api.AstrMessageEvent = object  # type: ignore[attr-defined]
     event_api.filter = FakeFilter  # type: ignore[attr-defined]
+    components_api.Record = FakeRecord  # type: ignore[attr-defined]
     star_api.Context = object  # type: ignore[attr-defined]
     star_api.Star = FakeStar  # type: ignore[attr-defined]
     astrbot.api = api  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "astrbot", astrbot)
     monkeypatch.setitem(sys.modules, "astrbot.api", api)
     monkeypatch.setitem(sys.modules, "astrbot.api.event", event_api)
+    monkeypatch.setitem(sys.modules, "astrbot.api.message_components", components_api)
     monkeypatch.setitem(sys.modules, "astrbot.api.star", star_api)
 
     # AstrBot imports an installed plugin as a package below data.plugins. Ensure
@@ -168,6 +177,9 @@ class FakeEvent:
     def image_result(self, source: str) -> dict[str, str]:
         return {"image": source}
 
+    def chain_result(self, chain: list[object]) -> dict[str, list[object]]:
+        return {"chain": chain}
+
     async def send(self, result: object) -> None:
         self.sent_results.append(result)
 
@@ -215,6 +227,29 @@ def _raw_rand_response() -> dict[str, object]:
                 )
             },
         },
+    ]
+    return response
+
+
+def _raw_preview_text() -> dict[str, object]:
+    response = _raw_response()
+    response["message_id"] = 700
+    response["message"] = [{"type": "text", "data": {"text": "曲目：Synthesis."}}]
+    return response
+
+
+def _raw_preview_record() -> dict[str, object]:
+    response = _raw_response()
+    response["message_id"] = 701
+    response["message"] = [
+        {
+            "type": "record",
+            "data": {
+                "file": "private-audio-id",
+                "path": "C:/private/cache.wav",
+                "url": "https://example.invalid/preview.wav?token=private",
+            },
+        }
     ]
     return response
 
@@ -436,6 +471,134 @@ async def test_random_song_image_delivery_failure_is_safe(
 
 
 @pytest.mark.asyncio
+async def test_preview_tool_sends_audio_only_to_original_event(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "enable_preview_tool": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+    other_event = FakeEvent({})
+
+    task = asyncio.create_task(
+        plugin.yurisaki_song_preview(caller_event, " synthesis ")
+    )
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    text_response = _raw_preview_text()
+    record_response = _raw_preview_record()
+    await client.emit(text_response)
+    assert task.done() is False
+    await client.emit(record_response)
+
+    text_intercept = FakeEvent(text_response)
+    record_intercept = FakeEvent(record_response)
+    await plugin.intercept_yurisaki_response(text_intercept)
+    await plugin.intercept_yurisaki_response(record_intercept)
+    serialized = await task
+    payload = json.loads(serialized)
+
+    assert client.calls[1][1]["message"] == "/a preview synthesis"
+    assert payload["ok"] is True
+    assert payload["canonical_title"] == "Synthesis."
+    assert payload["audio_count"] == 1
+    assert payload["audio_delivered"] is True
+    assert len(caller_event.sent_results) == 1
+    record = caller_event.sent_results[0]["chain"][0]  # type: ignore[index]
+    assert isinstance(record, FakeRecord)
+    assert record.url.startswith("https://example.invalid/preview.wav")
+    assert other_event.sent_results == []
+    assert "example.invalid" not in serialized
+    assert "private-audio-id" not in serialized
+    assert text_intercept.stopped is True
+    assert record_intercept.stopped is True
+
+    duplicate = json.loads(await plugin.yurisaki_song_preview(caller_event, "test"))
+    assert duplicate["error"]["type"] == "duplicate_tool_call"
+    assert len(client.calls) == 2
+    assert len(caller_event.sent_results) == 1
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "preview_config",
+    [{}, {"enable_preview_tool": False}],
+)
+async def test_preview_invalid_or_disabled_never_reaches_transport(
+    plugin_module: ModuleType,
+    preview_config: dict[str, object],
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            **preview_config,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FakeEvent({})
+
+    invalid = json.loads(
+        await plugin.yurisaki_song_preview(caller_event, "first\n/a help")
+    )
+    disabled = json.loads(await plugin.yurisaki_song_preview(caller_event, "test"))
+
+    assert invalid["error"]["type"] == "invalid_query"
+    assert disabled["error"]["type"] == "preview_disabled"
+    assert len(client.calls) == 1
+    assert caller_event.extras == {}
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
+async def test_preview_audio_delivery_failure_is_safe(
+    plugin_module: ModuleType,
+) -> None:
+    client = FakeClient()
+    plugin = plugin_module.YurisakiBridgePlugin(  # type: ignore[attr-defined]
+        FakeContext([FakePlatform(client)]),
+        {
+            "enabled": True,
+            "enable_preview_tool": True,
+            "yurisaki_user_id": YURISAKI_ID,
+            "timeout_seconds": 0.2,
+            "min_request_interval": 0.0,
+        },
+    )
+    await plugin.initialize()
+    caller_event = FailingSendEvent({})
+
+    task = asyncio.create_task(plugin.yurisaki_song_preview(caller_event, "test"))
+    await asyncio.wait_for(client.sent.wait(), timeout=0.2)
+    await client.emit(_raw_preview_text())
+    await client.emit(_raw_preview_record())
+    serialized = await task
+    payload = json.loads(serialized)
+    records = "\n".join(plugin_module.logger.records)  # type: ignore[attr-defined]
+
+    assert payload["ok"] is True
+    assert payload["audio_delivered"] is False
+    assert "example.invalid" not in serialized
+    assert "example.invalid" not in records
+    assert "private-audio-id" not in records
+
+    await plugin.terminate()
+
+
+@pytest.mark.asyncio
 async def test_tool_returns_safe_error_when_platform_is_unavailable(
     plugin_module: ModuleType,
 ) -> None:
@@ -520,3 +683,7 @@ def test_random_image_url_requires_http_or_https(plugin_module: ModuleType) -> N
     assert safe_image_url("file:///private/path.jpg") is None
     assert safe_image_url("javascript:alert(1)") is None
     assert safe_image_url("not-a-url") is None
+
+    safe_media_url = plugin_module._safe_media_url  # type: ignore[attr-defined]
+    assert safe_media_url("https://example.invalid/audio.wav") is not None
+    assert safe_media_url("file:///private/audio.wav") is None

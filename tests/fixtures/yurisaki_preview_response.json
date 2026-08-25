@@ -1,0 +1,20 @@
+[
+  [
+    {
+      "type": "text",
+      "data": {
+        "text": "曲目：Synthesis."
+      }
+    }
+  ],
+  [
+    {
+      "type": "record",
+      "data": {
+        "file": "synthetic-preview-file",
+        "path": "synthetic-preview-path.wav",
+        "url": "https://example.invalid/synthetic-preview.wav"
+      }
+    }
+  ]
+]

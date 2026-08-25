@@ -20,7 +20,7 @@ ruff format --check .
 
 ## 编码风格与命名规范
 
-使用 4 空格缩进、类型注解和异步 I/O；避免阻塞式网络请求。模块、函数和变量使用 `snake_case`，类使用 `PascalCase`，常量使用 `UPPER_SNAKE_CASE`。入口层不得堆积 OneBot 解析逻辑。公开 Tool 仅使用受控接口 `yurisaki_song_info(query)` 和 `yurisaki_random_song(difficulty="")`，禁止暴露任意命令执行入口。
+使用 4 空格缩进、类型注解和异步 I/O；避免阻塞式网络请求。模块、函数和变量使用 `snake_case`，类使用 `PascalCase`，常量使用 `UPPER_SNAKE_CASE`。入口层不得堆积 OneBot 解析逻辑。公开 Tool 仅使用受控接口 `yurisaki_song_info(query)`、`yurisaki_random_song(difficulty="")` 和 `yurisaki_song_preview(query)`，禁止暴露任意命令执行入口。
 
 ## 测试规范
 
@@ -60,12 +60,21 @@ ruff format --check .
   41,307 字节，SHA-256 为
   `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`，未认证公开下载
   复核一致。
+- v0.3.0 preview 探针在 AstrBot `4.27.4` 连续三次确认：先收到单 text event
+  `曲目：Synthesis.`，约两秒后收到独立单 `record` event；record 包含 file、file_size、
+  path、HTTPS url，无 reply 或第三条事件。脱敏记录不保留任何媒体值或账号标识。
+- 正式 v0.3.0 实现使用有限多事件 collector，以 text + record 为完成条件；部分响应超时
+  返回 `incomplete_response` 并进入共享 quarantine。音频只通过 AstrBot `Record` 消息链
+  即时发送到原 Tool caller，不进入 Tool JSON/日志，不下载、缓存或预先调用 ffmpeg。
+- `enable_preview_tool` 默认关闭并要求部署者主动开启；Tool description 限制为用户明确要求试听，同一 Agent
+  事件最多调用一次。正式实现不得包含 `/yurisaki_preview_probe` 调试命令。
+- transport 已兼容 AstrBot Python 3.10 中独立的 `asyncio.TimeoutError`；该问题有回归测试。
 
 ## 接下来要做
 
-1. 进入 v0.3.0 preview；先以固定 `/a preview` 指令探测音频 OneBot 协议，不依赖 Probe
-   源码，不把调试入口合并到 `main`。
-2. 获得脱敏事件结构后，再决定单事件或有限多事件 collector、媒体生命周期和发送方式。
-3. 实现完成后仍须独立实机验收；未经维护者另行授权不得创建 v0.3.0 Tag/Release。
+1. 完成 v0.3.0 正式实现的离线测试、Ruff、PR、CI 和自动合并；从合并后的 `main` 构建
+   本地 AstrBot 验收 ZIP。
+2. 维护者按 `docs/REAL_INTEGRATION.md` 的 v0.3.0 六项场景完成独立实机验收。
+3. 实机通过后再最终化 CHANGELOG/README；未经维护者另行授权不得创建 v0.3.0 Tag/Release。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。

@@ -7,12 +7,17 @@ import asyncio
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 PRIVATE_MESSAGE_EVENT = "message.private"
 _CONSUMED_EVENT_TTL_SECONDS = 30.0
 _MAX_CONSUMED_EVENTS = 32
+_MAX_PREVIEW_EVENTS = 4
+_MAX_PREVIEW_SEGMENTS_PER_EVENT = 8
+_MAX_PREVIEW_TEXT_LENGTH = 500
+_MAX_PREVIEW_REFERENCE_LENGTH = 4096
+_WAIT_TIMEOUT_ERROR = getattr(asyncio, "TimeoutError")
 
 
 class AiocqhttpClient(Protocol):
@@ -39,6 +44,10 @@ class SendFailedError(TransportError):
 
 class ResponseTimeoutError(TransportError):
     """Raised when Yurisaki does not respond within the configured timeout."""
+
+
+class IncompleteResponseError(TransportError):
+    """Raised when only part of a multi-event response arrives in time."""
 
 
 class TransportShuttingDownError(TransportError):
@@ -77,7 +86,12 @@ class PendingRequest:
     sent_at: int
     expected_sender_id: str
     expected_self_id: str
-    future: asyncio.Future[list[object]]
+    response_kind: str
+    future: asyncio.Future[list[list[object]]]
+    collected_events: list[list[object]] = field(default_factory=list)
+    seen_event_keys: set[tuple[str, str, str, str]] = field(default_factory=set)
+    has_text: bool = False
+    has_record: bool = False
 
 
 class YurisakiTransport:
@@ -136,6 +150,19 @@ class YurisakiTransport:
 
     async def request(self, command: str) -> list[object]:
         """Send one controlled command and await its matching raw response."""
+        events = await self._request(command, response_kind="single_text")
+        return events[0]
+
+    async def request_preview(self, command: str) -> list[list[object]]:
+        """Collect a bounded preview response until text and record both arrive."""
+        return await self._request(command, response_kind="preview")
+
+    async def _request(
+        self,
+        command: str,
+        *,
+        response_kind: str,
+    ) -> list[list[object]]:
         if not self.is_running:
             raise TransportUnavailableError("Yurisaki transport is not running")
 
@@ -152,6 +179,7 @@ class YurisakiTransport:
                 sent_at=int(self._wall_clock()),
                 expected_sender_id=self._config.yurisaki_user_id,
                 expected_self_id=self._config.self_id,
+                response_kind=response_kind,
                 future=loop.create_future(),
             )
             self._pending = pending
@@ -172,8 +200,12 @@ class YurisakiTransport:
                         pending.future,
                         timeout=self._config.timeout_seconds,
                     )
-                except TimeoutError as exc:
+                except _WAIT_TIMEOUT_ERROR as exc:
                     self._enter_quarantine()
+                    if pending.collected_events:
+                        raise IncompleteResponseError(
+                            "Yurisaki returned only part of the expected response"
+                        ) from exc
                     raise ResponseTimeoutError(
                         "Yurisaki did not respond before the timeout"
                     ) from exc
@@ -291,11 +323,38 @@ class YurisakiTransport:
         if not isinstance(event_time, (int, float)) or event_time < pending.sent_at:
             return False
         message = event.get("message")
-        if not isinstance(message, list) or not _has_text_segment(message):
+        if not isinstance(message, list):
             return False
 
-        pending.future.set_result(list(message))
+        event_key = _event_key(event)
+        if event_key is not None and event_key in pending.seen_event_keys:
+            return False
+
+        if pending.response_kind == "single_text":
+            retained_message = list(message)
+            has_text = _has_text_segment(retained_message)
+            has_record = False
+            if not has_text:
+                return False
+        else:
+            retained_message = _preview_segments(message)
+            has_text = _has_text_segment(retained_message)
+            has_record = _has_record_segment(retained_message)
+            if not has_text and not has_record:
+                return False
+
+        if event_key is not None:
+            pending.seen_event_keys.add(event_key)
+        if len(pending.collected_events) < _MAX_PREVIEW_EVENTS:
+            pending.collected_events.append(retained_message)
+        pending.has_text = pending.has_text or has_text
+        pending.has_record = pending.has_record or has_record
         self._record_consumed_event(event)
+
+        if pending.response_kind == "single_text" or (
+            pending.has_text and pending.has_record
+        ):
+            pending.future.set_result(list(pending.collected_events))
         return True
 
     def was_consumed(self, event: object) -> bool:
@@ -335,6 +394,58 @@ def _has_text_segment(message: list[object]) -> bool:
             if isinstance(text, str) and text.strip():
                 return True
     return False
+
+
+def _has_record_segment(message: list[object]) -> bool:
+    for segment in message:
+        if not isinstance(segment, Mapping) or segment.get("type") != "record":
+            continue
+        data = segment.get("data")
+        if not isinstance(data, Mapping):
+            data = segment
+        if any(
+            isinstance(data.get(key), str) and bool(data.get(key))
+            for key in ("file", "url", "path")
+        ):
+            return True
+    return False
+
+
+def _preview_segments(message: list[object]) -> list[object]:
+    retained: list[object] = []
+    for segment in message:
+        if len(retained) >= _MAX_PREVIEW_SEGMENTS_PER_EVENT:
+            break
+        if not isinstance(segment, Mapping):
+            continue
+        segment_type = segment.get("type")
+        raw_data = segment.get("data")
+        data = raw_data if isinstance(raw_data, Mapping) else segment
+        if segment_type == "text":
+            text = _bounded_string(data.get("text"), _MAX_PREVIEW_TEXT_LENGTH)
+            if text is not None:
+                retained.append({"type": "text", "data": {"text": text}})
+        elif segment_type == "record":
+            references = {
+                key: value
+                for key in ("file", "url", "path")
+                if (
+                    value := _bounded_string(
+                        data.get(key),
+                        _MAX_PREVIEW_REFERENCE_LENGTH,
+                    )
+                )
+                is not None
+            }
+            if references:
+                retained.append({"type": "record", "data": references})
+    return retained
+
+
+def _bounded_string(value: object, maximum_length: int) -> str | None:
+    if not isinstance(value, str) or not value or len(value) > maximum_length:
+        return None
+    return value
 
 
 def _event_key(event: Mapping[object, object]) -> tuple[str, str, str, str] | None:

@@ -31,6 +31,15 @@ class ImageReference:
         return {"file": self.file, "url": self.url}
 
 
+@dataclass(frozen=True, slots=True)
+class AudioReference:
+    """A transient audio reference retained only for immediate delivery."""
+
+    file: str | None = None
+    url: str | None = None
+    path: str | None = None
+
+
 @dataclass(slots=True)
 class SongInfoResult:
     """Structured result produced from one Yurisaki ``/a info`` response."""
@@ -146,4 +155,36 @@ class RandomSongResult:
                 "extra_fields": dict(self.extra_fields),
             }
         )
+        return payload
+
+
+@dataclass(slots=True)
+class SongPreviewResult:
+    """Structured result produced from a Yurisaki ``/a preview`` response."""
+
+    query: str
+    raw_text: str
+    ok: bool = True
+    canonical_title: str | None = None
+    audio: list[AudioReference] = field(default_factory=list)
+    audio_delivered: bool = False
+    error: BridgeError | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Build a Tool payload without exposing transient media references."""
+        payload: dict[str, Any] = {
+            "ok": self.ok,
+            "source": "Yurisaki",
+            "command": "preview",
+            "query": self.query,
+            "raw_text": self.raw_text,
+            "audio_count": len(self.audio),
+            "audio_delivered": self.audio_delivered,
+        }
+        if not self.ok:
+            if self.error is not None:
+                payload["error"] = self.error.to_dict()
+            return payload
+
+        payload["canonical_title"] = self.canonical_title
         return payload
