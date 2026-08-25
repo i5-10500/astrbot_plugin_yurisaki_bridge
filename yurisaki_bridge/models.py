@@ -38,6 +38,7 @@ class AudioReference:
     file: str | None = None
     url: str | None = None
     path: str | None = None
+    message_id: int | None = None
 
 
 @dataclass(slots=True)

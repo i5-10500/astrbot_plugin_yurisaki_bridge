@@ -250,6 +250,10 @@ class YurisakiBridgePlugin(Star):
         event: AstrMessageEvent,
         result: SongPreviewResult,
     ) -> None:
+        if await self._forward_preview_audio(event, result):
+            result.audio_delivered = True
+            return
+
         audio_source = next(
             (
                 safe_url
@@ -267,6 +271,42 @@ class YurisakiBridgePlugin(Star):
             logger.warning("Unable to deliver the Yurisaki preview audio")
             return
         result.audio_delivered = True
+
+    async def _forward_preview_audio(
+        self,
+        event: AstrMessageEvent,
+        result: SongPreviewResult,
+    ) -> bool:
+        """Use NapCat's native forwarding before falling back to Record delivery."""
+        transport = self._transport
+        message_id = next(
+            (
+                audio.message_id
+                for audio in result.audio
+                if audio.message_id is not None
+            ),
+            None,
+        )
+        if transport is None or message_id is None:
+            return False
+
+        group_id = _decimal_id(event.get_group_id())
+        user_id = None if group_id is not None else _decimal_id(event.get_sender_id())
+        if group_id is None and user_id is None:
+            return False
+
+        try:
+            await transport.forward_preview_message(
+                message_id,
+                user_id=user_id,
+                group_id=group_id,
+            )
+        except Exception:
+            logger.warning(
+                "Native preview forwarding unavailable; falling back to Record delivery"
+            )
+            return False
+        return True
 
     async def _ensure_service(self) -> YurisakiService:
         if self._terminated:
@@ -332,6 +372,14 @@ def _login_user_id(login_info: object) -> str:
     if not isinstance(user_id, (int, str)) or not str(user_id).isdecimal():
         raise RuntimeError("get_login_info did not return a valid user_id")
     return str(user_id)
+
+
+def _decimal_id(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, str)) and str(value).isdecimal():
+        return int(value)
+    return None
 
 
 def _safe_image_url(value: str | None) -> str | None:
