@@ -92,50 +92,6 @@ SHA-256 为 `D6A8CB46A345039F66D4BF77981A1E5599DD1511153C4D2C25F2AC38380C16EB`�
 GitHub 记录的 digest、本地 tag 构建结果及未带认证头的公开下载三者一致；Release 不是
 Draft 或 Prerelease。
 
-## `/a preview` 协议记录（2026-08-25）
-
-维护者在 AstrBot `4.27.4` 环境使用固定命令受限探针连续执行三次
-`/a preview synthesis`。三次响应结构一致：
-
-- 第一条 private event 只有一个 `text` segment，内容为 `曲目：Synthesis.`，约在发送后
-  1.6–2.2 秒到达。
-- 第二条 private event 只有一个 `record` segment，约在发送后 3.6–4.7 秒到达；相对文本
-  晚约 1.9–2.5 秒。
-- `record.data` 的键为 `file`、`file_size`、`path`、`url`；`file` 和 `url` 有值，URL
-  scheme 为 HTTPS。探针未保留任何引用值、账号、消息 ID 或原始 payload。
-- 两条 event 都没有 reply；三次都未出现第三条候选 event。
-
-因此 v0.3.0 使用与 info/rand 共用的全局 single-flight，有限收集同一请求的候选事件，只有
-曲名文本和 `record` 同时到齐才完成。实机发现 AstrBot aiocqhttp 会把 `Record` 组件先转换
-为 base64，NapCat 随后提示“需要转换成 silk”，会形成额外一轮有损编码。首次替代方案使用
-NapCat 单条消息转发，但实机只能得到 `[语音] 20\"` 形式的文字摘要，不能播放。当前方案
-改为绕过 AstrBot `Record`，把入站 `record.data.file` 标识作为受限 OneBot `record` 段直接
-发送给 NapCat；NapCat 可通过该标识反解原语音元素，并会在文件已经是 Silk 时跳过转换。
-该路径失败时才回退 AstrBot `Record`。所有临时媒体引用仍不向 Agent 暴露、不进入插件日志，
-也不由插件下载或缓存。脱敏合成 fixture 位于
-`tests/fixtures/yurisaki_preview_response.json`。
-
-首次探针曾在 AstrBot 随附的 Python 3.10 上把观察窗口的 `asyncio.TimeoutError` 误报为
-探针失败；正式 transport 已兼容捕获该异常，并有离线回归测试。该问题与 ffmpeg 无关。
-
-## v0.3.0 待验收场景
-
-安装合并后提供的 v0.3.0 验收 ZIP，禁用旧探针插件，并确认
-`enable_preview_tool=true`。依次检查：
-
-1. 明确要求试听 `synthesis`，确认 Agent 只调用一次
-   `yurisaki_song_preview(query="synthesis")`，原会话收到一条可播放语音，随后 Agent
-   文字中的曲名与 Tool JSON 一致；同时确认 NapCat 本次发送不再出现“需要转换成 silk”。
-2. 确认用户会话中不出现 `/a preview ...` 或 Yurisaki 原始曲名/语音；语音不重复发送，
-   Tool JSON 不含 URL、file 或 path。
-3. 在同一轮中让 Agent 尝试再次试听，确认不会产生第二条 QQ 命令或第二条语音。
-4. 同时发起一次 info 或 rand 和一次 preview，确认两者串行完成、结果不串台，语音只发送
-   到 preview 的原 Tool 会话。
-5. 将 `enable_preview_tool=false` 后明确要求试听，确认返回 `preview_disabled`，且不向
-   Yurisaki 发送命令；恢复为 `true` 后可正常试听。
-6. preview 等待期间重载插件，确认旧请求安全结束；重载后新试听正常且没有迟到原始响应或
-   重复语音。
-
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：
