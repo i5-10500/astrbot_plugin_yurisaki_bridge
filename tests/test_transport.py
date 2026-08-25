@@ -172,12 +172,22 @@ async def test_non_matching_events_are_ignored(wrong_event: object) -> None:
 
 
 @pytest.mark.asyncio
-async def test_event_without_active_request_is_ignored() -> None:
+async def test_rand_requires_active_pending() -> None:
     client = FakeClient()
     transport = YurisakiTransport(client, _config())
     transport.start()
 
-    assert await transport.consume_event(_event()) is False
+    assert (
+        await transport.consume_event(
+            _event(
+                message=[
+                    {"type": "image", "data": {"file": "cover"}},
+                    {"type": "text", "data": {"text": "曲目: Random\nBPM: 180"}},
+                ]
+            )
+        )
+        is False
+    )
 
 
 @pytest.mark.asyncio
@@ -452,6 +462,26 @@ async def test_requests_are_globally_single_flight() -> None:
     assert client.calls[1][1]["message"] == "/a info second"
     await client.emit(_event())
     await second
+
+
+@pytest.mark.asyncio
+async def test_info_and_rand_are_serialized_together() -> None:
+    client = FakeClient()
+    transport = YurisakiTransport(client, _config(), wall_clock=lambda: 1_000.0)
+    transport.start()
+    info = asyncio.create_task(transport.request("/a info Test"))
+    random_song = asyncio.create_task(transport.request("/a rand"))
+
+    await _wait_for_calls(client, 1)
+    assert client.calls[0][1]["message"] == "/a info Test"
+    assert len(client.calls) == 1
+    await client.emit(_event(message_id=124))
+    await info
+
+    await _wait_for_calls(client, 2)
+    assert client.calls[1][1]["message"] == "/a rand"
+    await client.emit(_event(message_id=125))
+    await random_song
 
 
 @pytest.mark.asyncio

@@ -3,8 +3,8 @@ display_name: Yurisaki Bridge
 short_desc: 通过 QQ 私聊将 Yurisaki 曲目信息接入 AstrBot Agent。
 desc: >-
   非官方第三方 AstrBot 插件，通过受控工具接口查询 Yurisaki 的 Arcaea
-  曲目信息。支持 aiocqhttp/NapCat，已完成离线测试和真实环境联调。
-version: 0.1.1
+  曲目信息和随机曲目。支持 aiocqhttp/NapCat，已完成离线测试和真实环境联调。
+version: 0.2.0
 author: i5-10500
 repo: https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 astrbot_version: ">=4.17,<5"

@@ -32,6 +32,33 @@
 同期 transport、解析和查询归属均正常，因此记录为模型最终回答幻觉，而非插件串台。诊断
 类似问题时应先核对 Tool JSON，不应把模型自行补充的内容反向写入 parser 规则。
 
+## `/a rand` 协议记录（2026-08-25）
+
+维护者使用固定指令的受限探测包连续执行三次 `/a rand`。三次响应结构一致：
+
+- 每次只有一个 OneBot private message event，3 秒观察窗口内没有延迟拆包。
+- 每个 event 固定包含两个 segment，顺序为 `image → text`，没有 reply。
+- image data 均包含 `file`、`file_size`、`sub_type`、`summary`、`url`；
+  `file` 与 `url` 均有值。
+- text 使用“为您推荐的曲目是：”前导行，随后为曲目、难度、物量、谱面设计、曲侧、
+  艺术家、BPM、版本、上线日期和曲包字段。
+
+脱敏 fixture 位于 `tests/fixtures/yurisaki_rand_response.json`；账号、消息 ID、时间戳和
+媒体值均未保留。
+
+## v0.2.0 针对性回归（待验收）
+
+请从合并后的 `main` 安装 `astrbot_plugin_yurisaki_bridge-0.2.0.zip`，保持 Probe 插件
+禁用，并依次检查：
+
+1. 用自然语言要求“随机一首 Arcaea”，确认 Agent 只调用一次
+   `yurisaki_random_song()`，原会话先收到一张封面，随后收到与 Tool 数据一致的文字。
+2. 确认群聊或私聊中不出现 `/a rand` 和 Yurisaki 原始回复，且封面不重复发送。
+3. 要求“随机一首定数 9+ 的歌”，确认 Tool 没有筛选参数，Agent 不声称随机结果满足
+   9+ 条件；它可以明确说明当前只支持无条件随机。
+4. 同时发起一次 `/a info` 和一次随机曲目请求，确认两者串行完成、结果不串台且随机封面
+   只发到对应的原会话。
+
 ## 1. 准备隔离环境
 
 Windows 推荐使用本机已有的 `uv` 安装 AstrBot，不需要 Docker：

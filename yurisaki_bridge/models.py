@@ -43,6 +43,7 @@ class SongInfoResult:
     difficulties: list[str] = field(default_factory=list)
     note_counts: list[str] = field(default_factory=list)
     charters: list[str] = field(default_factory=list)
+    side: str | None = None
     artist: str | None = None
     bpm: str | None = None
     version: str | None = None
@@ -73,6 +74,63 @@ class SongInfoResult:
                 "difficulties": list(self.difficulties),
                 "note_counts": list(self.note_counts),
                 "charters": list(self.charters),
+                "side": self.side,
+                "artist": self.artist,
+                "bpm": self.bpm,
+                "version": self.version,
+                "release_date": self.release_date,
+                "pack": self.pack,
+                "extra_fields": dict(self.extra_fields),
+            }
+        )
+        return payload
+
+
+@dataclass(slots=True)
+class RandomSongResult:
+    """Structured result produced from one Yurisaki ``/a rand`` response."""
+
+    raw_text: str
+    ok: bool = True
+    canonical_title: str | None = None
+    song_id: str | None = None
+    difficulties: list[str] = field(default_factory=list)
+    note_counts: list[str] = field(default_factory=list)
+    charters: list[str] = field(default_factory=list)
+    side: str | None = None
+    artist: str | None = None
+    bpm: str | None = None
+    version: str | None = None
+    release_date: str | None = None
+    pack: str | None = None
+    images: list[ImageReference] = field(default_factory=list)
+    extra_fields: dict[str, str] = field(default_factory=dict)
+    image_delivered: bool = False
+    error: BridgeError | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Build the Tool payload without exposing temporary media values."""
+        payload: dict[str, Any] = {
+            "ok": self.ok,
+            "source": "Yurisaki",
+            "command": "rand",
+            "raw_text": self.raw_text,
+            "image_count": len(self.images),
+            "image_delivered": self.image_delivered,
+        }
+        if not self.ok:
+            if self.error is not None:
+                payload["error"] = self.error.to_dict()
+            return payload
+
+        payload.update(
+            {
+                "canonical_title": self.canonical_title,
+                "song_id": self.song_id,
+                "difficulties": list(self.difficulties),
+                "note_counts": list(self.note_counts),
+                "charters": list(self.charters),
+                "side": self.side,
                 "artist": self.artist,
                 "bpm": self.bpm,
                 "version": self.version,

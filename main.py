@@ -7,16 +7,23 @@ import asyncio
 import json
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
 
 from .yurisaki_bridge import __version__
-from .yurisaki_bridge.service import YurisakiService, unavailable_payload
+from .yurisaki_bridge.models import RandomSongResult
+from .yurisaki_bridge.service import (
+    YurisakiService,
+    random_song_error,
+    unavailable_payload,
+)
 from .yurisaki_bridge.transport import TransportConfig, YurisakiTransport
 
 _PLATFORM_NAME = "aiocqhttp"
+_RANDOM_TOOL_EVENT_KEY = "yurisaki_bridge.random_song_called"
 
 
 class YurisakiBridgePlugin(Star):
@@ -73,6 +80,39 @@ class YurisakiBridgePlugin(Star):
         payload = await service.song_info(query)
         return json.dumps(payload, ensure_ascii=False)
 
+    @filter.llm_tool(name="yurisaki_random_song")
+    async def yurisaki_random_song(self, event: AstrMessageEvent) -> str:
+        """随机推荐一首 Arcaea 曲目并发送封面；不支持筛选，每轮最多调用一次。"""
+        if not self.config.get("enabled", True):
+            result = random_song_error(
+                "transport_unavailable",
+                "Yurisaki Bridge is disabled.",
+            )
+            return json.dumps(result.to_dict(), ensure_ascii=False)
+
+        if event.get_extra(_RANDOM_TOOL_EVENT_KEY):
+            result = random_song_error(
+                "duplicate_tool_call",
+                "The random-song Tool was already called for this user request.",
+            )
+            return json.dumps(result.to_dict(), ensure_ascii=False)
+        event.set_extra(_RANDOM_TOOL_EVENT_KEY, True)
+
+        try:
+            service = await self._ensure_service()
+        except Exception:
+            logger.warning("Unable to initialize Yurisaki transport", exc_info=True)
+            result = random_song_error(
+                "transport_unavailable",
+                "No connected aiocqhttp platform is available.",
+            )
+            return json.dumps(result.to_dict(), ensure_ascii=False)
+
+        result = await service.random_song()
+        if result.ok:
+            await self._deliver_random_image(event, result)
+        return json.dumps(result.to_dict(), ensure_ascii=False)
+
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP, priority=1000)
     @filter.event_message_type(filter.EventMessageType.PRIVATE_MESSAGE, priority=1000)
     async def intercept_yurisaki_response(self, event: AstrMessageEvent) -> None:
@@ -94,6 +134,28 @@ class YurisakiBridgePlugin(Star):
         if transport is not None:
             await transport.shutdown()
         logger.info("Yurisaki Bridge terminated")
+
+    async def _deliver_random_image(
+        self,
+        event: AstrMessageEvent,
+        result: RandomSongResult,
+    ) -> None:
+        image_source = next(
+            (
+                safe_url
+                for image in result.images
+                if (safe_url := _safe_image_url(image.url))
+            ),
+            None,
+        )
+        if image_source is None:
+            return
+        try:
+            await event.send(event.image_result(image_source))
+        except Exception:
+            logger.warning("Unable to deliver the Yurisaki random-song image")
+            return
+        result.image_delivered = True
 
     async def _ensure_service(self) -> YurisakiService:
         if self._terminated:
@@ -159,3 +221,12 @@ def _login_user_id(login_info: object) -> str:
     if not isinstance(user_id, (int, str)) or not str(user_id).isdecimal():
         raise RuntimeError("get_login_info did not return a valid user_id")
     return str(user_id)
+
+
+def _safe_image_url(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return value

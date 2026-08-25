@@ -8,3 +8,7 @@ Files whose names end in `_synthetic.json` are invented protocol-shaped examples
 not captured service responses. Real compatibility is verified separately with the
 isolated checklist in `docs/REAL_INTEGRATION.md`. Never replace these files with raw
 logs; only add a real fixture after it has been strictly sanitized.
+
+`yurisaki_rand_response.json` records the stable shape observed in three real
+`/a rand` responses on 2026-08-25: one event containing image then text, with
+account IDs, message IDs, timestamps, image identifiers, sizes, and URLs replaced.

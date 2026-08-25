@@ -6,8 +6,9 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 
 ## 当前状态
 
-v0.1.1 已经完成离线检查、针对性实机回归和公开发布。该版本修复超时后迟到响应
-可能污染下一次查询的问题，并收紧歌曲信息响应校验。详细边界见
+v0.1.1 已经完成离线检查、针对性实机回归和公开发布。当前 `main` 为 v0.2.0
+开发版本，新增随机曲目 Tool 和原会话封面交付；正式发布前仍需完成一次媒体链路实机
+回归。详细边界见
 [`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
 
 当前支持：
@@ -15,9 +16,11 @@ v0.1.1 已经完成离线检查、针对性实机回归和公开发布。该版�
 - aiocqhttp / NapCat / OneBot v11。
 - Yurisaki 私聊 `/a info` 查询。
 - AstrBot Agent Tool `yurisaki_song_info(query)`。
+- Yurisaki 私聊 `/a rand` 与 Agent Tool `yurisaki_random_song()`。
 - 曲名、别名或曲目 ID 查询，以及结构化结果和安全错误模型。
 
-暂不支持 `/a chart`、其他 Yurisaki 命令或其他平台适配器。
+随机 Tool 只支持无条件随机一首曲目，不支持定数、难度、曲包或成绩过滤。暂不支持
+`/a chart`、其他 Yurisaki 命令或其他平台适配器。
 
 ## 前置条件
 
@@ -37,7 +40,7 @@ https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 也可以克隆仓库后，从最新 `main` 生成本地安装包：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.1.zip main
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -65,6 +68,7 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.1.1.zip main
 
 ```text
 yurisaki_song_info(query)
+yurisaki_random_song()
 ```
 
 Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度、换行和命令注入校验后，
@@ -76,6 +80,10 @@ Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度
 
 插件不提供任意 QQ 消息或 Yurisaki 命令执行入口。
 
+`yurisaki_random_song()` 不接受参数，且每轮用户请求最多执行一次。它会即时把 Yurisaki
+封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent 返回不含临时 URL/file 值的
+结构化歌曲信息；Agent 只负责组织最终文字回答。
+
 ## 工作原理
 
 ```text
@@ -84,7 +92,7 @@ Agent -> Tool -> QQ private -> Yurisaki -> Parser -> Tool Result -> Agent
 
 入口层负责 AstrBot Tool、配置、响应拦截和生命周期；Service 负责输入校验与业务编排；
 Transport 负责 OneBot 私聊、超时、限速和回调；Parser 将文本与 OneBot segments 转换为
-结构化结果。
+结构化结果。`/a info` 和 `/a rand` 共享同一个 single-flight 与超时隔离状态。
 
 Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 single-flight，同一时间只
 允许一个在途查询。这会牺牲并发吞吐量，但可以避免不同用户的响应串台。查询超时后还会
@@ -102,6 +110,8 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
   `timeout_seconds`；超时后的新查询还会等待 `timeout_quarantine_seconds` 指定的
   安静窗口。
 - **出现重复响应**：禁用 Probe 或其他监听同一 Yurisaki 私聊的插件，然后重载本插件。
+- **随机曲目有文字但没有封面**：确认 NapCat 能访问 Yurisaki 图片 URL；插件仍会保留
+  结构化文字结果，并把 `image_delivered` 标记为 `false`。
 - **重连后仍不可用**：确认 AstrBot 已重新收到 aiocqhttp 平台连接，再发起一个新查询。
 
 报告问题时请提供 AstrBot/NapCat 版本、脱敏错误行和 OneBot segment 类型，不要上传完整
@@ -111,8 +121,8 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 
 插件不会主动收集普通群友聊天正文。原始事件监听器只接受目标 Yurisaki 账号、当前机器人
 账号和当前请求时间窗口同时匹配的私聊响应；超时隔离期内来自目标账号的迟到响应只会被
-丢弃和拦截。响应正文只用于完成本次 Tool 调用。默认日志只记录必要元数据，不记录私聊
-正文。
+丢弃和拦截。响应正文只用于完成本次 Tool 调用。随机曲目图片 URL 只用于即时发送，不写入
+日志或 Tool JSON，也不由插件下载或持久化。默认日志只记录必要元数据，不记录私聊正文。
 
 更多报告要求见 [`SECURITY.md`](SECURITY.md)。
 
