@@ -69,12 +69,14 @@ ruff format --check .
 - `enable_preview_tool` 默认关闭并要求部署者主动开启；Tool description 限制为用户明确要求试听，同一 Agent
   事件最多调用一次。正式实现不得包含 `/yurisaki_preview_probe` 调试命令。
 - transport 已兼容 AstrBot Python 3.10 中独立的 `asyncio.TimeoutError`；该问题有回归测试。
+- PR #27 已合并正式 v0.3.0 preview 实现；133 项本地测试、Ruff 和 GitHub Actions
+  Python 3.12/3.13 均通过。`main` 不包含探针命令或探针 collector 源码。
 
 ## 接下来要做
 
-1. 完成 v0.3.0 正式实现的离线测试、Ruff、PR、CI 和自动合并；从合并后的 `main` 构建
-   本地 AstrBot 验收 ZIP。
-2. 维护者按 `docs/REAL_INTEGRATION.md` 的 v0.3.0 六项场景完成独立实机验收。
+1. 从最终 `main` 构建本地 AstrBot v0.3.0 验收 ZIP，并复核 export-ignore、版本与摘要。
+2. 维护者安装 ZIP，主动设置 `enable_preview_tool=true`，再按
+   `docs/REAL_INTEGRATION.md` 的 v0.3.0 六项场景完成独立实机验收。
 3. 实机通过后再最终化 CHANGELOG/README；未经维护者另行授权不得创建 v0.3.0 Tag/Release。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
