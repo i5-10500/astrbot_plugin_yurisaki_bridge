@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库的 v0.1.0 已公开发布；v0.1.1 离线检查和针对性真实环境回归均已完成，等待明确的 Release 授权。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
+本仓库的 v0.1.1 已完成离线检查、针对性真实环境回归和公开发布。`main.py` 负责 AstrBot Tool、配置和生命周期；`yurisaki_bridge/` 按 `service.py`、`transport.py`、`parser.py` 和 `models.py` 分层；测试位于 `tests/`，脱敏 OneBot 样本位于 `tests/fixtures/`。真实联调步骤见 `docs/REAL_INTEGRATION.md`。不要复制或依赖 Probe 插件源码。
 
 ## 构建、测试与开发命令
 
@@ -42,13 +42,14 @@ ruff format --check .
 - 新配置 `timeout_quarantine_seconds` 默认 5 秒；`metadata.yaml` 和包版本均为 `0.1.1`。
 - PR #18 已合并；本地共 64 项测试及 GitHub Actions Python 3.12/3.13 通过，`ruff check .` 和 `ruff format --check .` 通过。
 - 维护者完成 v0.1.1 三项实机回归并全部通过。一次 Agent 最终回答出现 Tool JSON 与 `raw_text` 中均不存在的信息，归类为模型幻觉，不是插件响应串台；不要据此增加猜测性 parser 规则。
+- 维护者已明确授权创建 annotated `v0.1.1` tag 和 GitHub Release；发布资产必须从 tag 重建并公开复核。
 - 许可证为 `AGPL-3.0-or-later`，版权仅使用公开化名 `i5-10500`；不要写入维护者真实姓名。
 - 维护者已删除 AstrBot Cloud 市场页面，当前开发周期不重新提交市场。不要在当前主机安装或配置 AstrBot/NapCat。
 
 ## 接下来要做
 
-1. v0.1.1 已达到发布条件，但创建 tag/GitHub Release 仍需维护者明确授权；不得从“继续开发”推断发布许可。
-2. 获得并完成 v0.1.1 Release 授权后进入 v0.2.0；先制作只执行固定 `/a rand` 的受限协议探测包，捕获并脱敏 OneBot raw payload。
-3. 在获得 `/a rand` 的 event 数量、segment 顺序、text/image 字段和拆包行为前，不正式实现 `yurisaki_random_song()`。
+1. v0.1.1 Release 完成后进入 v0.2.0；先制作只执行固定 `/a rand` 的受限协议探测包，捕获并脱敏 OneBot raw payload。
+2. 在获得 `/a rand` 的 event 数量、segment 顺序、text/image 字段和拆包行为前，不正式实现 `yurisaki_random_song()`。
+3. 探测包不得提供任意命令入口，不得记录账号、message ID、时间戳或临时媒体 URL。
 
 维护者已授权：普通开发修复在本地测试和 CI 通过后自动提交、创建 PR 并合并，无需再次确认。不得自动发布新的 GitHub Release。
