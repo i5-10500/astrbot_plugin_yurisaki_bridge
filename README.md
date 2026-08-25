@@ -6,10 +6,11 @@ Arcaea 或 lowiro 的官方立场；使用外部服务时请遵守对应服务�
 
 ## 当前状态
 
-当前稳定版本为 v0.2.1。曲目信息、随机曲目、可选标级/定数筛选、原会话封面交付及
-错误处理均已完成离线检查和针对性实机回归。v0.2.1 进入维护模式，重点收紧文档一致性、
-LLM-facing 媒体数据和随机曲绘 URL 边界。详细记录见
-[`docs/REAL_INTEGRATION.md`](docs/REAL_INTEGRATION.md)。
+最新稳定版本见 [GitHub Releases](https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge/releases)。
+当前规划的功能范围已经完成；项目仍会正常维护，后续版本主要处理兼容性、可靠性、安全、
+文档和已复现缺陷。真实环境验收方法见
+[`docs/INTEGRATION_TESTING.md`](docs/INTEGRATION_TESTING.md)，长期协议边界见
+[`docs/PROTOCOL_NOTES.md`](docs/PROTOCOL_NOTES.md)。
 
 当前支持：
 
@@ -48,10 +49,10 @@ https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge
 ```
 
 普通用户应优先从 [GitHub Releases](https://github.com/i5-10500/astrbot_plugin_yurisaki_bridge/releases)
-下载正式资产。维护者需要从本地重建特定版本时，文件名和 tag 必须使用相同版本，例如：
+下载正式资产。维护者需要从本地重建特定版本时，文件名和 tag 必须对应：
 
 ```powershell
-git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.1.zip v0.2.1
+git archive --format=zip --output astrbot_plugin_yurisaki_bridge-<version>.zip <tag>
 ```
 
 在 AstrBot WebUI 的插件页面选择本地文件上传该 ZIP。若旧版本安装失败，请先删除失败的
@@ -98,10 +99,10 @@ Agent 不能控制目标 QQ、OneBot API 名称、任意 `/a` 子命令或 raw p
 `8.0` 是定数。插件只会把白名单值附加到 `/a rand`，其他值返回 `invalid_filter` 且不会
 发送 QQ 命令。
 
-随机查询成功时，插件会即时把 Yurisaki 封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent
-返回不含临时 URL/file 值的结构化歌曲信息。过滤响应中的曲名 `[...]` 后缀与单个难度、
-物量、谱师字段按上游原文保留。Yurisaki 的已知纯文本错误会分别返回 `invalid_filter` 或
-`no_matching_song`，不会被当成成功结果或触发图片发送。
+随机查询成功时，插件会即时把 Yurisaki 封面 URL 作为图片发送到发起 Tool 的原会话，再向
+Agent 返回不含临时 URL/file 值的结构化歌曲信息。过滤响应中的曲名 `[...]` 后缀与单个
+难度、物量、谱师字段按上游原文保留。Yurisaki 的已知纯文本错误会分别返回
+`invalid_filter` 或 `no_matching_song`，不会被当成成功结果或触发图片发送。
 
 ## 工作原理
 
@@ -120,8 +121,7 @@ Yurisaki 响应不包含原请求 request ID，因此所有会话共享全局 si
 
 ## 常见问题
 
-- **安装时报 `No module named 'yurisaki_bridge'`**：删除旧插件副本，重新安装 v0.1.1
-  或更新版本。
+- **安装时报 `No module named 'yurisaki_bridge'`**：删除旧插件副本，然后安装最新 Release。
 - **找不到 aiocqhttp 平台**：确认 NapCat 已连接；多平台环境还要填写正确的
   `platform_id`。
 - **无法发送私聊**：确认机器人 QQ 能主动私聊目标账号，并检查 NapCat 的连接状态。
@@ -160,7 +160,9 @@ python -m pytest
 
 离线测试不会连接真实 QQ 或 Yurisaki。贡献流程见
 [`CONTRIBUTING.md`](CONTRIBUTING.md)，版本记录见 [`CHANGELOG.md`](CHANGELOG.md)，
-维护者发布流程见 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)。
+真实环境测试见 [`docs/INTEGRATION_TESTING.md`](docs/INTEGRATION_TESTING.md)，协议事实见
+[`docs/PROTOCOL_NOTES.md`](docs/PROTOCOL_NOTES.md)，维护者发布流程见
+[`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)。
 
 ## 维护状态
 

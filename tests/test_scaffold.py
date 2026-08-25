@@ -43,7 +43,8 @@ def test_public_docs_do_not_contain_test_release_residue() -> None:
         ROOT / "README.md",
         ROOT / "CHANGELOG.md",
         ROOT / "SECURITY.md",
-        ROOT / "docs" / "REAL_INTEGRATION.md",
+        ROOT / "docs" / "INTEGRATION_TESTING.md",
+        ROOT / "docs" / "PROTOCOL_NOTES.md",
         ROOT / "tests" / "fixtures" / "README.md",
         ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml",
     ]
@@ -59,6 +60,23 @@ def test_public_docs_do_not_contain_test_release_residue() -> None:
         text = public_doc.read_text(encoding="utf-8")
         for forbidden_term in forbidden_terms:
             assert forbidden_term not in text
+
+
+def test_long_lived_docs_avoid_patch_version_and_legacy_doc_references() -> None:
+    long_lived_docs = [
+        ROOT / "README.md",
+        ROOT / "AGENTS.md",
+        ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml",
+    ]
+
+    for document in long_lived_docs:
+        text = document.read_text(encoding="utf-8")
+        assert re.search(r"\bv\d+\.\d+\.\d+\b", text) is None
+        assert "REAL_INTEGRATION" not in text
+
+    assert not (ROOT / "docs" / "REAL_INTEGRATION.md").exists()
+    assert (ROOT / "docs" / "INTEGRATION_TESTING.md").is_file()
+    assert (ROOT / "docs" / "PROTOCOL_NOTES.md").is_file()
 
 
 def test_architecture_modules_are_importable() -> None:
