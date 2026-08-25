@@ -219,6 +219,7 @@ def test_rand_parser_text_and_image() -> None:
         "ok": True,
         "source": "Yurisaki",
         "command": "rand",
+        "filter": None,
         "raw_text": (
             "为您推荐的曲目是：\n曲目：Hypnotize\n"
             "难度：3.5 / 7.0 / 8.9 / 9.9\n物量：518 / 761 / 993 / 1164\n"
@@ -241,6 +242,52 @@ def test_rand_parser_text_and_image() -> None:
         "pack": "Absolute Nihil",
         "extra_fields": {},
     }
+
+
+def test_filtered_rand_single_chart_values_and_title_suffix() -> None:
+    result = parse_random_song_response(
+        [
+            {"type": "image", "data": {"file": "synthetic-cover"}},
+            _text_segment(
+                "为您推荐的曲目是：\n曲目：Test Song [FTR]\n"
+                "难度：10.7\n物量：1234\n谱面设计：Test Charter"
+            ),
+        ]
+    )
+
+    assert result.ok is True
+    assert result.canonical_title == "Test Song [FTR]"
+    assert result.difficulties == ["10.7"]
+    assert result.note_counts == ["1234"]
+    assert result.charters == ["Test Charter"]
+
+
+def test_rand_out_of_range_error_is_classified() -> None:
+    result = parse_random_song_response(
+        [_text_segment("谱面定数应该在 [1.0, 12.0] 区间内。")]
+    )
+
+    assert result.ok is False
+    assert result.raw_text == "谱面定数应该在 [1.0, 12.0] 区间内。"
+    assert result.error is not None
+    assert result.error.error_type == "invalid_filter"
+
+
+def test_rand_no_matching_song_error_is_classified() -> None:
+    result = parse_random_song_response([_text_segment("没有找到符合条件的曲目。")])
+
+    assert result.ok is False
+    assert result.raw_text == "没有找到符合条件的曲目。"
+    assert result.error is not None
+    assert result.error.error_type == "no_matching_song"
+
+
+def test_rand_unknown_plain_text_is_still_invalid_response() -> None:
+    result = parse_random_song_response([_text_segment("没有找到曲目。")])
+
+    assert result.ok is False
+    assert result.error is not None
+    assert result.error.error_type == "invalid_response"
 
 
 def test_rand_missing_image() -> None:

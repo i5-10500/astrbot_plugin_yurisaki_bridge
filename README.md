@@ -16,11 +16,12 @@ v0.1.1 已经完成离线检查、针对性实机回归和公开发布。当前 
 - aiocqhttp / NapCat / OneBot v11。
 - Yurisaki 私聊 `/a info` 查询。
 - AstrBot Agent Tool `yurisaki_song_info(query)`。
-- Yurisaki 私聊 `/a rand` 与 Agent Tool `yurisaki_random_song()`。
+- Yurisaki 私聊 `/a rand [标级或定数]` 与 Agent Tool
+  `yurisaki_random_song(difficulty="")`。
 - 曲名、别名或曲目 ID 查询，以及结构化结果和安全错误模型。
 
-随机 Tool 只支持无条件随机一首曲目，不支持定数、难度、曲包或成绩过滤。暂不支持
-`/a chart`、其他 Yurisaki 命令或其他平台适配器。
+随机 Tool 支持无条件随机，也支持 Yurisaki 已定义的标级或谱面定数筛选；不支持曲包、
+成绩或任意文本过滤。暂不支持 `/a chart`、其他 Yurisaki 命令或其他平台适配器。
 
 ## 前置条件
 
@@ -68,7 +69,7 @@ git archive --format=zip --output astrbot_plugin_yurisaki_bridge-0.2.0.zip main
 
 ```text
 yurisaki_song_info(query)
-yurisaki_random_song()
+yurisaki_random_song(difficulty="")
 ```
 
 Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度、换行和命令注入校验后，
@@ -80,9 +81,16 @@ Agent 可以在回答 Arcaea 曲目信息问题时调用它。输入经过长度
 
 插件不提供任意 QQ 消息或 Yurisaki 命令执行入口。
 
-`yurisaki_random_song()` 不接受参数，且每轮用户请求最多执行一次。它会即时把 Yurisaki
-封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent 返回不含临时 URL/file 值的
-结构化歌曲信息；Agent 只负责组织最终文字回答。
+`yurisaki_random_song(difficulty="")` 每轮用户请求最多执行一次。`difficulty` 留空时发送
+`/a rand`；标级只接受 `1`–`12` 与 `8+`、`9+`、`10+`、`11+`，定数只接受
+`1.0`–`7.5`（步长 `0.5`）与 `8.0`–`12.0`（步长 `0.1`）。例如 `8+` 是标级，
+`8.0` 是定数。插件只会把白名单值附加到 `/a rand`，其他值返回 `invalid_filter` 且不会
+发送 QQ 命令。
+
+成功时，插件会即时把 Yurisaki 封面 URL 作为图片发送到发起 Tool 的原会话，再向 Agent
+返回不含临时 URL/file 值的结构化歌曲信息。过滤响应中的曲名 `[...]` 后缀与单个难度、
+物量、谱师字段按上游原文保留。Yurisaki 的已知纯文本错误会分别返回 `invalid_filter` 或
+`no_matching_song`，不会被当成成功结果或触发图片发送。
 
 ## 工作原理
 

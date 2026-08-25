@@ -36,6 +36,16 @@ _FIELD_ALIASES = {
 _LIST_FIELDS = {"difficulties", "note_counts", "charters"}
 _IDENTITY_FIELDS = {"canonical_title", "song_id"}
 _RAND_PREAMBLE_LABELS = {"为您推荐的曲目是"}
+_RAND_ERROR_MESSAGES = {
+    "谱面定数应该在 [1.0, 12.0] 区间内。": (
+        "invalid_filter",
+        "The requested chart constant is outside Yurisaki's supported range.",
+    ),
+    "没有找到符合条件的曲目。": (
+        "no_matching_song",
+        "Yurisaki found no song matching the requested filter.",
+    ),
+}
 
 
 def extract_message_content(
@@ -105,6 +115,13 @@ def parse_random_song_response(segments: Sequence[object]) -> RandomSongResult:
             error_type="invalid_response",
             message="Yurisaki random-song response contained no text.",
         )
+        return result
+
+    upstream_error = _RAND_ERROR_MESSAGES.get(raw_text.strip())
+    if upstream_error is not None:
+        error_type, message = upstream_error
+        result.ok = False
+        result.error = BridgeError(error_type=error_type, message=message)
         return result
 
     parsed_fields = _parse_fields(

@@ -92,6 +92,8 @@ class RandomSongResult:
 
     raw_text: str
     ok: bool = True
+    filter_type: str | None = None
+    filter_value: str | None = None
     canonical_title: str | None = None
     song_id: str | None = None
     difficulties: list[str] = field(default_factory=list)
@@ -114,6 +116,11 @@ class RandomSongResult:
             "ok": self.ok,
             "source": "Yurisaki",
             "command": "rand",
+            "filter": (
+                {"type": self.filter_type, "value": self.filter_value}
+                if self.filter_type is not None and self.filter_value is not None
+                else None
+            ),
             "raw_text": self.raw_text,
             "image_count": len(self.images),
             "image_delivered": self.image_delivered,
